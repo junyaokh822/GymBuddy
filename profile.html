@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GymBuddy | Profile</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <style>
@@ -20,7 +21,7 @@
       background: rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(20px);
       border-radius: 25px;
-      padding: 50px 60px;
+      padding: 20px 60px;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
       text-align: center;
       color: white;
@@ -117,8 +118,69 @@
         font-size: 2.2rem;
       }
     }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.4);
+    }
+
+    .modal-content {
+      background-color: #1e1e1e;
+      color: white;
+      margin: 10% auto;
+      padding: 30px;
+      border: 1px solid #888;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 400px;
+      position: relative;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .modal-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .modal-content input[type="password"] {
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: none;
+    }
+
+    .close {
+      color: white;
+      position: absolute;
+      top: 12px;
+      right: 20px;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   </style>
 </head>
+
 <body>
 
   <div class="card">
@@ -134,110 +196,198 @@
     <div class="info-grid" id="profileInfo">
       <!-- User info will render here -->
     </div>
+    <button class="btn" id="editBtn">Edit Profile Information</button>
+    <button class="btn" id="saveBtn" style="display: none;">Save</button>
 
-    <div>
-      <button class="btn" id="editBtn">Edit</button>
-      <button class="btn" id="saveBtn" style="display: none;">Save</button>
-      <button class="btn" onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
+    <div style="margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 25px;">
+
+      <!-- Password Modal -->
+      <div id="passwordModal" class="modal">
+        <div class="modal-content">
+          <span class="close" onclick="closePasswordModal()">&times;</span>
+          <h2>Change Password</h2>
+          <div class="modal-form">
+            <label>Current Password</label>
+            <input type="password" id="currentPassword" placeholder="Enter current password" />
+            <label>New Password</label>
+            <input type="password" id="newPassword" placeholder="Enter new password" />
+            <label>Confirm Password</label>
+            <input type="password" id="confirmPassword" placeholder="Confirm new password" />
+            <button class="btn" onclick="changePassword()">Update Password</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <!-- Modal Trigger Button -->
+        <button class="btn" onclick="openPasswordModal()">Change Password</button>
+        <button class="btn" onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
+      </div>
     </div>
-  </div>
 
-  <script>
-    const user = JSON.parse(localStorage.getItem("user"));
-    const profileInfo = document.getElementById("profileInfo");
-    const profilePic = document.getElementById("profilePic");
-    const plusIcon = document.getElementById("plusIcon");
-    const imgUpload = document.getElementById("imgUpload");
-    const editBtn = document.getElementById("editBtn");
-    const saveBtn = document.getElementById("saveBtn");
+    <script>
+      const user = JSON.parse(localStorage.getItem("user"));
+      const profileInfo = document.getElementById("profileInfo");
+      const profilePic = document.getElementById("profilePic");
+      const plusIcon = document.getElementById("plusIcon");
+      const imgUpload = document.getElementById("imgUpload");
+      const editBtn = document.getElementById("editBtn");
+      const saveBtn = document.getElementById("saveBtn");
 
-    let isEditing = false;
+      let isEditing = false;
 
-    function renderProfile(editing = false) {
-      if (!user) {
-        profileInfo.innerHTML = "<div style='grid-column: span 2;'>Session expired. Please log in again.</div>";
-        return;
-      }
+      function renderProfile(editing = false) {
+        if (!user) {
+          profileInfo.innerHTML = "<div style='grid-column: span 2;'>Session expired. Please log in again.</div>";
+          return;
+        }
 
-      profileInfo.innerHTML = editing
-        ? `
+        profileInfo.innerHTML = editing
+          ? `
           <div><strong>First Name:</strong></div><div><input type="text" id="firstInput" value="${user.firstname}" /></div>
           <div><strong>Last Name:</strong></div><div><input type="text" id="lastInput" value="${user.lastname}" /></div>
           <div><strong>Email:</strong></div><div><input type="email" id="emailInput" value="${user.email}" /></div>
         `
-        : `
+          : `
           <div><strong>First Name:</strong></div><div>${user.firstname}</div>
           <div><strong>Last Name:</strong></div><div>${user.lastname}</div>
           <div><strong>Email:</strong></div><div>${user.email}</div>
         `;
-    }
-
-    renderProfile();
-
-    editBtn.addEventListener("click", () => {
-      isEditing = true;
-      renderProfile(true);
-      editBtn.style.display = "none";
-      saveBtn.style.display = "inline-block";
-    });
-
-    saveBtn.addEventListener("click", async () => {
-      const updatedUser = {
-        ...user,
-        firstname: document.getElementById("firstInput").value.trim(),
-        lastname: document.getElementById("lastInput").value.trim(),
-        email: document.getElementById("emailInput").value.trim(),
-      };
-
-      try {
-          const res = await fetch(`http://localhost:5000/api/auth/users/${user._id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(updatedUser)
-        });
-
-        if (!res.ok) throw new Error("Failed to update user.");
-
-        const result = await res.json();
-
-        // Update localStorage
-        localStorage.setItem("user", JSON.stringify(result.user));
-        Object.assign(user, result.user); // Keep in memory
-
-        renderProfile(false);
-        isEditing = false;
-        editBtn.style.display = "inline-block";
-        saveBtn.style.display = "none";
-        alert("Profile updated successfully!");
-      } catch (err) {
-        alert("Update failed: " + err.message);
       }
-    });
 
-    // Profile picture load
-    const savedImg = localStorage.getItem("profilePic");
-    if (savedImg) {
-      profilePic.src = savedImg;
-      profilePic.style.display = "block";
-      plusIcon.style.display = "none";
-    }
+      renderProfile();
 
-    imgUpload.addEventListener("change", function () {
-      const file = this.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          profilePic.src = e.target.result;
-          profilePic.style.display = "block";
-          plusIcon.style.display = "none";
-          localStorage.setItem("profilePic", e.target.result);
+      editBtn.addEventListener("click", () => {
+        isEditing = true;
+        renderProfile(true);
+        editBtn.style.display = "none";
+        saveBtn.style.display = "inline-block";
+      });
+
+      saveBtn.addEventListener("click", async () => {
+        const updatedUser = {
+          ...user,
+          firstname: document.getElementById("firstInput").value.trim(),
+          lastname: document.getElementById("lastInput").value.trim(),
+          email: document.getElementById("emailInput").value.trim(),
         };
-        reader.readAsDataURL(file);
+
+        try {
+          const res = await fetch(`http://localhost:5000/api/auth/users/${user._id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(updatedUser)
+          });
+
+          if (!res.ok) throw new Error("Failed to update user.");
+
+          const result = await res.json();
+
+          // Update localStorage
+          localStorage.setItem("user", JSON.stringify(result.user));
+          Object.assign(user, result.user); // Keep in memory
+
+          renderProfile(false);
+          isEditing = false;
+          editBtn.style.display = "inline-block";
+          saveBtn.style.display = "none";
+          alert("Profile updated successfully!");
+        } catch (err) {
+          alert("Update failed: " + err.message);
+        }
+      });
+
+      // Profile picture load
+      const savedImg = localStorage.getItem("profilePic");
+      if (savedImg) {
+        profilePic.src = savedImg;
+        profilePic.style.display = "block";
+        plusIcon.style.display = "none";
       }
-    });
-  </script>
+
+      imgUpload.addEventListener("change", function () {
+        const file = this.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            profilePic.src = e.target.result;
+            profilePic.style.display = "block";
+            plusIcon.style.display = "none";
+            localStorage.setItem("profilePic", e.target.result);
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+
+      function openPasswordModal() {
+        document.getElementById("passwordModal").style.display = "block";
+      }
+
+      function closePasswordModal() {
+        document.getElementById("passwordModal").style.display = "none";
+        // clear inputs
+        document.getElementById("currentPassword").value = "";
+        document.getElementById("newPassword").value = "";
+        document.getElementById("confirmPassword").value = "";
+      }
+
+      // close modal when clicking outside of it
+      window.onclick = function (event) {
+        const modal = document.getElementById("passwordModal");
+        if (event.target === modal) {
+          closePasswordModal();
+        }
+      }
+
+      async function changePassword() {
+        const currentPassword = document.getElementById("currentPassword").value.trim();
+        const newPassword = document.getElementById("newPassword").value.trim();
+        const confirmPassword = document.getElementById("confirmPassword").value.trim();
+
+        if (!currentPassword || !newPassword || !confirmPassword) {
+          return alert("All fields are required.");
+        }
+
+        if (newPassword !== confirmPassword) {
+          return alert("New passwords do not match.");
+        }
+
+        if (newPassword.length < 6) {
+          return alert("Password must be at least 6 characters.");
+        }
+
+        try {
+          const res = await fetch(`http://localhost:5000/api/auth/change-password/${user._id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ currentPassword, newPassword })
+          });
+
+          const contentType = res.headers.get("Content-Type");
+
+          let result;
+          if (contentType && contentType.includes("application/json")) {
+            result = await res.json();
+          } else {
+            throw new Error("Server did not return JSON");
+          }
+
+          if (!res.ok) throw new Error(result.message || "Update failed");
+
+          alert("✅ Password updated successfully!");
+          closePasswordModal();
+        } catch (err) {
+          alert("❌ Password update failed: " + err.message);
+        }
+      }
+
+
+    </script>
 
 </body>
+
 </html>
