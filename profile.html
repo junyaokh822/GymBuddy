@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GymBuddy | Profile</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to right, #4facfe, #00f2fe);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      border-radius: 25px;
+      padding: 50px 60px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      color: white;
+      width: 90%;
+      max-width: 500px;
+    }
+
+    .profile-pic-container {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin: 0 auto;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 4px solid white;
+      background-color: #ffffff55;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+    }
+
+    .profile-pic {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+
+    .plus-icon {
+      font-size: 2.5rem;
+      color: white;
+      user-select: none;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    input[type="text"],
+    input[type="email"] {
+      width: 100%;
+      padding: 5px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+    }
+
+    .card h1 {
+      font-size: 2.8rem;
+      margin-top: 20px;
+    }
+
+    .info-grid {
+      margin-top: 30px;
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      row-gap: 20px;
+      column-gap: 10px;
+      font-size: 1.1rem;
+      text-align: left;
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+      padding-top: 25px;
+    }
+
+    .info-grid strong {
+      font-weight: 600;
+    }
+
+    .btn {
+      margin-top: 25px;
+      padding: 12px 28px;
+      font-size: 1rem;
+      background-color: black;
+      color: white;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: 0.3s;
+      margin-right: 10px;
+    }
+
+    .btn:hover {
+      background-color: #222;
+    }
+
+    @media (max-width: 500px) {
+      .card {
+        padding: 40px 30px;
+      }
+
+      .card h1 {
+        font-size: 2.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <!-- Profile Picture Upload -->
+    <div class="profile-pic-container" onclick="document.getElementById('imgUpload').click()">
+      <span class="plus-icon" id="plusIcon">+</span>
+      <img id="profilePic" class="profile-pic" alt="Profile Picture" />
+      <input type="file" id="imgUpload" accept="image/*" />
+    </div>
+
+    <h1>My Profile</h1>
+
+    <div class="info-grid" id="profileInfo">
+      <!-- User info will render here -->
+    </div>
+
+    <div>
+      <button class="btn" id="editBtn">Edit</button>
+      <button class="btn" id="saveBtn" style="display: none;">Save</button>
+      <button class="btn" onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
+    </div>
+  </div>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem("user"));
+    const profileInfo = document.getElementById("profileInfo");
+    const profilePic = document.getElementById("profilePic");
+    const plusIcon = document.getElementById("plusIcon");
+    const imgUpload = document.getElementById("imgUpload");
+    const editBtn = document.getElementById("editBtn");
+    const saveBtn = document.getElementById("saveBtn");
+
+    let isEditing = false;
+
+    function renderProfile(editing = false) {
+      if (!user) {
+        profileInfo.innerHTML = "<div style='grid-column: span 2;'>Session expired. Please log in again.</div>";
+        return;
+      }
+
+      profileInfo.innerHTML = editing
+        ? `
+          <div><strong>First Name:</strong></div><div><input type="text" id="firstInput" value="${user.firstname}" /></div>
+          <div><strong>Last Name:</strong></div><div><input type="text" id="lastInput" value="${user.lastname}" /></div>
+          <div><strong>Email:</strong></div><div><input type="email" id="emailInput" value="${user.email}" /></div>
+        `
+        : `
+          <div><strong>First Name:</strong></div><div>${user.firstname}</div>
+          <div><strong>Last Name:</strong></div><div>${user.lastname}</div>
+          <div><strong>Email:</strong></div><div>${user.email}</div>
+        `;
+    }
+
+    renderProfile();
+
+    editBtn.addEventListener("click", () => {
+      isEditing = true;
+      renderProfile(true);
+      editBtn.style.display = "none";
+      saveBtn.style.display = "inline-block";
+    });
+
+    saveBtn.addEventListener("click", async () => {
+      const updatedUser = {
+        ...user,
+        firstname: document.getElementById("firstInput").value.trim(),
+        lastname: document.getElementById("lastInput").value.trim(),
+        email: document.getElementById("emailInput").value.trim(),
+      };
+
+      try {
+          const res = await fetch(`http://localhost:5000/api/auth/users/${user._id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(updatedUser)
+        });
+
+        if (!res.ok) throw new Error("Failed to update user.");
+
+        const result = await res.json();
+
+        // Update localStorage
+        localStorage.setItem("user", JSON.stringify(result.user));
+        Object.assign(user, result.user); // Keep in memory
+
+        renderProfile(false);
+        isEditing = false;
+        editBtn.style.display = "inline-block";
+        saveBtn.style.display = "none";
+        alert("Profile updated successfully!");
+      } catch (err) {
+        alert("Update failed: " + err.message);
+      }
+    });
+
+    // Profile picture load
+    const savedImg = localStorage.getItem("profilePic");
+    if (savedImg) {
+      profilePic.src = savedImg;
+      profilePic.style.display = "block";
+      plusIcon.style.display = "none";
+    }
+
+    imgUpload.addEventListener("change", function () {
+      const file = this.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          profilePic.src = e.target.result;
+          profilePic.style.display = "block";
+          plusIcon.style.display = "none";
+          localStorage.setItem("profilePic", e.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  </script>
+
+</body>
+</html>

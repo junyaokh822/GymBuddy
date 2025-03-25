@@ -126,5 +126,32 @@ router.post("/reset-password", async (req, res) => {
     }
 });
 
+// PUT /api/users/:id
+router.put("/users/:id", async (req, res) => {
+    console.log("Updating user:", req.params.id, req.body);
+  
+    try {
+      const updated = await User.findByIdAndUpdate(
+        req.params.id,
+        {
+          firstname: req.body.firstname,
+          lastname: req.body.lastname,
+          email: req.body.email,
+        },
+        { new: true }
+      );
+  
+      if (!updated) {
+        return res.status(404).json({ error: "User not found" });
+      }
+  
+      res.json({ message: "User updated", user: updated });
+    } catch (err) {
+      console.error("Update error:", err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  
 
 module.exports = router;

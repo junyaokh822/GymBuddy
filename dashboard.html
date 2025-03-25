@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GymBuddy | Dashboard</title>
   <style>
     body {
@@ -16,13 +17,16 @@
       justify-content: center;
       height: 100vh;
     }
+
     h1 {
       font-size: 3rem;
     }
+
     .user-info {
       font-size: 1.2rem;
       margin-top: 10px;
     }
+
     .logout-btn {
       margin-top: 20px;
       padding: 10px 25px;
@@ -34,15 +38,21 @@
       cursor: pointer;
       transition: 0.3s;
     }
+
     .logout-btn:hover {
       background-color: #eee;
     }
   </style>
 </head>
+
+
+
 <body>
   <h1>Welcome to GymBuddy!</h1>
   <div class="user-info" id="userEmail">Loading user info...</div>
+  <button class="logout-btn" onclick="goToProfile()">My Profile</button>
   <button class="logout-btn" onclick="logout()">Log Out</button>
+
 
   <script>
     async function fetchUserData() {
@@ -84,8 +94,10 @@
       window.location.href = "index.html";
     }
 
-    // Trigger on page load
+    function goToProfile() {
+      window.location.href = "profile.html";
+    }
+
     fetchUserData();
   </script>
 </body>
-</html>
