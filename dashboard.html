@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GymBuddy | Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to right, #4facfe, #00f2fe);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    h1 {
+      font-size: 3rem;
+    }
+    .user-info {
+      font-size: 1.2rem;
+      margin-top: 10px;
+    }
+    .logout-btn {
+      margin-top: 20px;
+      padding: 10px 25px;
+      font-size: 1rem;
+      background-color: white;
+      color: #333;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .logout-btn:hover {
+      background-color: #eee;
+    }
+  </style>
+</head>
+<body>
+  <h1>Welcome to GymBuddy!</h1>
+  <div class="user-info" id="userEmail">Loading user info...</div>
+  <button class="logout-btn" onclick="logout()">Log Out</button>
+
+  <script>
+    async function fetchUserData() {
+      const token = localStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem("user"));
+
+      if (!token || !user) {
+        alert("Session expired. Please log in again.");
+        logout();
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:5000/api/protected", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          document.getElementById("userEmail").innerText = `Logged in as: ${user.firstname} ${user.lastname}`;
+        } else {
+          alert("Session expired. Please log in again.");
+          logout();
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        alert("Error retrieving user info. Please try again.");
+        logout();
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "index.html";
+    }
+
+    // Trigger on page load
+    fetchUserData();
+  </script>
+</body>
+</html>
