@@ -5,7 +5,7 @@ const User = require('../models/User');
 const router = express.Router();
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
-
+const authMiddleware = require('../middleware/authMiddleware');
 
 // REGISTER (Sign Up)
 router.post('/register', async (req, res) => {
@@ -175,5 +175,53 @@ router.put("/change-password/:id", async (req, res) => {
     }
 });
 
+router.put('/preferences/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    const { preferences } = req.body;
+
+    // Validate input
+    if (!Array.isArray(preferences)) {
+        return res.status(400).json({ message: "Preferences must be an array." });
+    }
+
+    try {
+        // Find user and update with new preferences
+        const user = await User.findByIdAndUpdate(
+            id,
+            { preferences },
+            {
+                new: true,  // Return updated document
+                runValidators: true  // Validate update operation
+            }
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        // Explicitly send a clean response
+        return res.status(200).json({
+            message: "Preferences updated successfully.",
+            user: {
+                _id: user._id,
+                firstname: user.firstname,
+                lastname: user.lastname,
+                email: user.email,
+                preferences: user.preferences
+            }
+        });
+
+    } catch (err) {
+        console.error("Preference update error:", err);
+
+        // Ensure no headers have been sent before responding
+        if (!res.headersSent) {
+            return res.status(500).json({
+                message: "Server error while saving preferences.",
+                error: err.message
+            });
+        }
+    }
+});
 
 module.exports = router;

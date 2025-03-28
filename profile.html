@@ -178,10 +178,32 @@
         transform: translateY(0);
       }
     }
+
+    .floating-btn {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      background-color: black;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      padding: 12px 20px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      transition: background-color 0.3s ease;
+      z-index: 1000;
+    }
+
+    .floating-btn:hover {
+      background-color: #222;
+    }
   </style>
 </head>
 
 <body>
+  <!-- Gym Preference Edit Button -->
+  <button id="openPreferenceModal" class="floating-btn">Edit Gym Preference</button>
 
   <div class="card">
     <!-- Profile Picture Upload -->
@@ -224,6 +246,27 @@
         <button class="btn" onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
       </div>
     </div>
+
+    <!-- Gym Preference Modal -->
+    <div id="preferenceModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closePreferenceModal()">&times;</span>
+        <h2>Select Your Gym Preferences</h2>
+        <form id="preferenceForm" class="modal-form">
+          <label><input type="checkbox" name="preferences" value="Chest"> Chest</label>
+          <label><input type="checkbox" name="preferences" value="Back"> Back</label>
+          <label><input type="checkbox" name="preferences" value="Legs"> Legs</label>
+          <label><input type="checkbox" name="preferences" value="Biceps"> Biceps</label>
+          <label><input type="checkbox" name="preferences" value="Triceps"> Triceps</label>
+          <label><input type="checkbox" name="preferences" value="Cardio"> Cardio</label>
+          <label><input type="checkbox" name="preferences" value="Cycling"> Cycling</label>
+          <label><input type="checkbox" name="preferences" value="HIIT"> HIIT</label>
+          <label><input type="checkbox" name="preferences" value="Yoga"> Yoga</label>
+          <button type="submit" class="btn">Save Preferences</button>
+        </form>
+      </div>
+    </div>
+
 
     <script>
       const user = JSON.parse(localStorage.getItem("user"));
@@ -384,7 +427,83 @@
           alert("❌ Password update failed: " + err.message);
         }
       }
+      // Gym Preference Modal Logic
+      const preferenceModal = document.getElementById("preferenceModal");
+      const openPreferenceBtn = document.getElementById("openPreferenceModal");
+      const preferenceForm = document.getElementById("preferenceForm");
 
+      openPreferenceBtn.addEventListener("click", () => {
+        preferenceModal.style.display = "block";
+      });
+
+      function closePreferenceModal() {
+        preferenceModal.style.display = "none";
+      }
+
+      window.addEventListener("click", (event) => {
+        if (event.target === preferenceModal) {
+          closePreferenceModal();
+        }
+      });
+
+      preferenceForm.addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(preferenceForm);
+        const selectedPrefs = formData.getAll("preferences");
+
+        const token = localStorage.getItem("token");
+        if (!token) {
+          alert("Session expired. Please log in again.");
+          return;
+        }
+
+        try {
+          const res = await fetch(`http://localhost:5000/api/auth/preferences/${user._id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ preferences: selectedPrefs })
+          });
+
+          const result = await res.json();
+
+          if (!res.ok) {
+            throw new Error(result.message || "Failed to save preferences");
+          }
+
+          // Update localStorage with new user data
+          localStorage.setItem("user", JSON.stringify(result.user));
+
+          // Update local user object
+          Object.assign(user, result.user);
+
+          // Update UI checkboxes
+          prefillPreferencesFromUser();
+
+          alert("✅ Preferences saved successfully!");
+          closePreferenceModal();
+
+        } catch (err) {
+          console.error("Preference update error:", err);
+          alert("❌ Could not save preferences: " + err.message);
+        }
+      });
+
+      openPreferenceBtn.addEventListener("click", () => {
+        prefillPreferencesFromUser();              // ✅ Use our new function
+        preferenceModal.style.display = "block";  // ✅ Open modal
+      });
+
+
+      function prefillPreferencesFromUser() {
+        const checkboxes = preferenceForm.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+          checkbox.checked = user.preferences?.includes(checkbox.value);
+        });
+      }
 
     </script>
 

@@ -5,7 +5,10 @@ const UserSchema = new mongoose.Schema({
     lastname: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-
+    preferences: {
+        type: [String],
+        default: []
+      },
     // 🔐 Password reset fields
     resetToken: { type: String },
     resetTokenExpiration: { type: Date }

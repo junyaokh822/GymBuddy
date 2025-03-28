@@ -16,7 +16,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 // ✅ Authentication Routes (Login & Register)
-app.use("/api/auth", authRoutes);
+// app.use("/api/auth", authRoutes);
+app.use('/api/auth', require('./routes/auth'));
 
 // ✅ Protected Route Example
 app.get("/api/protected", verifyToken, (req, res) => {
