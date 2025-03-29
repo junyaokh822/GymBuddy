@@ -40,6 +40,7 @@ router.put("/events/:id", authMiddleware, async (req, res) => {
         const updatedEvent = await CalendarEvent.findByIdAndUpdate(
             req.params.id,
             {
+                title: req.body.title,
                 start: new Date(req.body.start),
                 end: new Date(req.body.end)
             },
@@ -53,6 +54,17 @@ router.put("/events/:id", authMiddleware, async (req, res) => {
         res.json(updatedEvent);
     } catch (err) {
         res.status(500).json({ message: "Failed to update event", error: err.message });
+    }
+});
+
+router.delete("/events/:id", authMiddleware, async (req, res) => {
+    try {
+        const deleted = await CalendarEvent.findByIdAndDelete(req.params.id);
+        if (!deleted) return res.status(404).json({ message: "Event not found" });
+
+        res.json({ message: "Event deleted" });
+    } catch (err) {
+        res.status(500).json({ message: "Failed to delete event", error: err.message });
     }
 });
 

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -8,134 +9,159 @@
     <link rel="stylesheet" href="style.css">
     <title>GymBuddy | Login & Registration</title>
 </head>
+
 <body>
- <div class="wrapper">
-    <nav class="nav">
-        <div class="nav-logo">
-            <!-- <p>LOGO .</p> -->
-            <img src="images/gymbuddy-high-resolution-logo_1_-removebg-preview.png" alt="GymBuddy Logo" class="logo-img">
-        </div>
-        <div class="nav-menu" id="navMenu">
-            <ul>
-                <li><a href="#" class="link active">Home</a></li>
-                <li><a href="about.html" class="link">About</a></li>
-            </ul>
-        </div>
-        <div class="nav-button">
-            <button class="btn white-btn" id="loginBtn" onclick="login()">Sign In</button>
-            <button class="btn" id="registerBtn" onclick="register()">Sign Up</button>
-        </div>
-        <div class="nav-menu-btn">
-            <i class="bx bx-menu" onclick="myMenuFunction()"></i>
-        </div>
-    </nav>
+    <div class="wrapper">
+        <nav class="nav">
+            <div class="nav-logo">
+                <!-- <p>LOGO .</p> -->
+                <img src="images/gymbuddy-high-resolution-logo_1_-removebg-preview.png" alt="GymBuddy Logo"
+                    class="logo-img">
+            </div>
+            <div class="nav-menu" id="navMenu">
+                <ul>
+                    <li><a href="#" class="link active">Home</a></li>
+                    <li><a href="about.html" class="link">About</a></li>
+                </ul>
+            </div>
+            <div class="nav-button">
+                <button class="btn white-btn" id="loginBtn" onclick="login()">Sign In</button>
+                <button class="btn" id="registerBtn" onclick="register()">Sign Up</button>
+            </div>
+            <div class="nav-menu-btn">
+                <i class="bx bx-menu" onclick="myMenuFunction()"></i>
+            </div>
+        </nav>
 
-<!----------------------------- Form box ----------------------------------->    
-    <div class="form-box">
-        
-        <!------------------- login form -------------------------->
+        <!----------------------------- Form box ----------------------------------->
+        <div class="form-box">
 
-        <div class="login-container" id="login">
-            <div class="top">
-                <span>Don't have an account? <a href="#" onclick="register()">Sign Up</a></span>
-                <header>Login</header>
-            </div>
-            <div class="input-box">
-                <input type="text" class="input-field" id="login-email" placeholder="Username or Email">
-                <i class="bx bx-user"></i>
-            </div>
-            <div class="input-box">
-                <input type="password" class="input-field" id="login-password" placeholder="Password">
-                <i class="bx bx-lock-alt"></i>
-            </div>
-            <div class="input-box">
-                <input type="submit" class="submit" value="Sign In">
-            </div>
-            <div class="two-col">
-                <div class="one">
-                    <input type="checkbox" id="login-check">
-                    <label for="login-check"> Remember Me</label>
+            <!------------------- login form -------------------------->
+
+            <div class="login-container" id="login">
+                <div class="top">
+                    <span>Don't have an account? <a href="#" onclick="register()">Sign Up</a></span>
+                    <header>Login</header>
                 </div>
-                <div class="two">
-                    <label><a href="forgot-password.html">Forgot password?</a></label>
-                </div>
-            </div>
-        </div>
-
-        <!------------------- registration form -------------------------->
-        <div class="register-container" id="register">
-            <div class="top">
-                <span>Have an account? <a href="#" onclick="login()">Login</a></span>
-                <header>Sign Up</header>
-            </div>
-            <div class="two-forms">
                 <div class="input-box">
-                    <input type="text" class="input-field" id="register-firstname" placeholder="Firstname">
+                    <input type="text" class="input-field" id="login-email" placeholder="Username or Email">
                     <i class="bx bx-user"></i>
                 </div>
                 <div class="input-box">
-                    <input type="text" class="input-field" id="register-lastname" placeholder="Lastname">
-                    <i class="bx bx-user"></i>
+                    <input type="password" class="input-field" id="login-password" placeholder="Password">
+                    <i class="bx bx-lock-alt"></i>
+                </div>
+                <div class="input-box">
+                    <input type="submit" class="submit" value="Sign In" onclick="handleLogin()">
+                </div>
+                <div class="two-col">
+                    <div class="one">
+                        <input type="checkbox" id="login-check">
+                        <label for="login-check"> Remember Me</label>
+                    </div>
+                    <div class="two">
+                        <label><a href="forgot-password.html">Forgot password?</a></label>
+                    </div>
                 </div>
             </div>
-            <div class="input-box">
-                <input type="text" class="input-field" id="register-email" placeholder="Email">
-                <i class="bx bx-envelope"></i>
-            </div>
-            <div class="input-box">
-                <input type="password" class="input-field" id="register-password" placeholder="Password">
-                <i class="bx bx-lock-alt"></i>
-            </div>
-            <div class="input-box">
-                <input type="submit" class="submit" value="Register">
-            </div>
-            <div class="two-col">
-                <div class="one">
+
+            <!------------------- registration form -------------------------->
+            <div class="register-container" id="register">
+                <div class="top">
+                    <span>Have an account? <a href="#" onclick="login()">Login</a></span>
+                    <header>Sign Up</header>
                 </div>
-            </div>
-            <div class="two-center">
-                <label><a href="terms.html" target="_blank">Terms & conditions</a></label>
+                <div class="two-forms">
+                    <div class="input-box">
+                        <input type="text" class="input-field" id="register-firstname" placeholder="Firstname">
+                        <i class="bx bx-user"></i>
+                    </div>
+                    <div class="input-box">
+                        <input type="text" class="input-field" id="register-lastname" placeholder="Lastname">
+                        <i class="bx bx-user"></i>
+                    </div>
+                </div>
+                <div class="input-box">
+                    <input type="text" class="input-field" id="register-email" placeholder="Email">
+                    <i class="bx bx-envelope"></i>
+                </div>
+                <div class="input-box">
+                    <input type="password" class="input-field" id="register-password" placeholder="Password">
+                    <i class="bx bx-lock-alt"></i>
+                </div>
+                <div class="input-box">
+                    <input type="submit" class="submit" value="Register" onclick="handleRegister()">
+                </div>
+                <div class="two-col">
+                    <div class="one">
+                    </div>
+                </div>
+                <div class="two-center">
+                    <label><a href="terms.html" target="_blank">Terms & conditions</a></label>
+                </div>
             </div>
         </div>
     </div>
-</div>   
 
-<script>
-   function myMenuFunction() {
-    var i = document.getElementById("navMenu");
+    <script>
+        function myMenuFunction() {
+            var i = document.getElementById("navMenu");
 
-    if(i.className === "nav-menu") {
-        i.className += " responsive";
-    } else {
-        i.className = "nav-menu";
-    }
-   }
-</script>
+            if (i.className === "nav-menu") {
+                i.className += " responsive";
+            } else {
+                i.className = "nav-menu";
+            }
+        }
+    </script>
 
-<script>
-    var a = document.getElementById("loginBtn");
-    var b = document.getElementById("registerBtn");
-    var x = document.getElementById("login");
-    var y = document.getElementById("register");
+    <script>
+        var a = document.getElementById("loginBtn");
+        var b = document.getElementById("registerBtn");
+        var x = document.getElementById("login");
+        var y = document.getElementById("register");
 
-    function login() {
-        x.style.left = "4px";
-        y.style.right = "-520px";
-        a.className += " white-btn";
-        b.className = "btn";
-        x.style.opacity = 1;
-        y.style.opacity = 0;
-    }
+        function login() {
+            x.style.left = "4px";
+            y.style.right = "-520px";
+            a.className += " white-btn";
+            b.className = "btn";
+            x.style.opacity = 1;
+            y.style.opacity = 0;
+        }
 
-    function register() {
-        x.style.left = "-510px";
-        y.style.right = "5px";
-        a.className = "btn";
-        b.className += " white-btn";
-        x.style.opacity = 0;
-        y.style.opacity = 1;
-    }
-</script>
-<script src="script.js"></script>
+        function register() {
+            x.style.left = "-510px";
+            y.style.right = "5px";
+            a.className = "btn";
+            b.className += " white-btn";
+            x.style.opacity = 0;
+            y.style.opacity = 1;
+        }
+    </script>
+    <script src="script.js"></script>
+    <script>
+        // Enable Enter key to submit login form
+        document.querySelectorAll('#login-email, #login-password').forEach(input => {
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.querySelector('#login .submit').click();
+                }
+            });
+        });
+
+        // Enable Enter key to submit registration form
+        document.querySelectorAll('#register-firstname, #register-lastname, #register-email, #register-password').forEach(input => {
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.querySelector('#register .submit').click();
+                }
+            });
+        });
+    </script>
+
 </body>
+
 </html>
