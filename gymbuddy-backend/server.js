@@ -4,6 +4,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
 const verifyToken = require('./middleware/authMiddleware'); // ✅ Middleware to protect routes
+const calendarRoutes = require("./routes/calendar");
 
 dotenv.config();
 connectDB();
@@ -29,6 +30,8 @@ app.use((err, req, res, next) => {
     console.error("❌ Server Error:", err.message);
     res.status(500).json({ message: "Internal Server Error" });
 });
+
+app.use("/api/calendar", calendarRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT} 🚀`));

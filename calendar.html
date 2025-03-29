@@ -1,35 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GymBuddy | Calendar</title>
+
+  <!-- FullCalendar CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.css" rel="stylesheet" />
+  <!-- FullCalendar JS -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js"></script>
+
   <style>
     body {
-      margin: 0;
       font-family: 'Poppins', sans-serif;
       background: linear-gradient(to right, #43cea2, #185a9d);
       color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px;
+      padding: 20px;
+      margin: 0;
     }
 
     h1 {
-      font-size: 2.5rem;
-      margin-bottom: 20px;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    #calendar {
+      max-width: 900px;
+      margin: 0 auto;
+      background-color: white;
+      color: black;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
     }
 
     .btn {
-      padding: 10px 20px;
-      margin-top: 20px;
+      margin-top: 30px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 12px 24px;
+      font-size: 1rem;
       background-color: black;
       color: white;
       border: none;
       border-radius: 25px;
       cursor: pointer;
-      transition: 0.3s;
+      transition: background-color 0.3s ease;
     }
 
     .btn:hover {
@@ -37,10 +55,156 @@
     }
   </style>
 </head>
+
 <body>
-  <h1>Choose Your Available Gym Times</h1>
-  <p>[🗓️ Calendar Integration Will Be Added Here]</p>
+  <h1>My Gym Availability Calendar</h1>
+
+  <div id="calendar"></div>
 
   <button class="btn" onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const calendarEl = document.getElementById('calendar');
+      const user = JSON.parse(localStorage.getItem("user"));
+      const token = localStorage.getItem("token");
+
+      if (!user || !token) {
+        alert("Session expired. Please log in again.");
+        window.location.href = "index.html";
+        return;
+      }
+
+      const calendar = new FullCalendar.Calendar(calendarEl, {
+        timeZone: 'local', // Change from 'America/New_York' to 'local'
+        initialView: 'timeGridWeek',
+        selectable: true,
+        editable: true,
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'timeGridWeek,timeGridDay'
+        },
+        eventDrop: async function (info) {
+          await updateEventTime(info.event);
+        },
+
+        eventResize: async function (info) {
+          await updateEventTime(info.event);
+        },
+
+
+        // Update tooltip to use local time
+        eventDidMount: function (info) {
+          const start = new Date(info.event.start).toLocaleString("en-US", {
+            hour: "numeric",
+            minute: "numeric",
+            hour12: true
+          });
+
+          const end = new Date(info.event.end).toLocaleString("en-US", {
+            hour: "numeric",
+            minute: "numeric",
+            hour12: true
+          });
+
+          info.el.setAttribute("title", `${info.event.title}\n${start} - ${end}`);
+        },
+
+        select: async function (info) {
+          const title = prompt("Enter session title:");
+          if (title) {
+            const newEvent = {
+              title: title,
+              start: info.startStr,
+              end: info.endStr,
+              userId: user._id
+            };
+
+            // Save to backend
+            try {
+              const res = await fetch("http://localhost:5000/api/calendar/events", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(newEvent)
+              });
+
+              const result = await res.json();
+              if (!res.ok) throw new Error(result.message);
+
+              calendar.addEvent({
+                id: result._id,
+                title: title,
+                start: info.start,
+                end: info.end,
+                userId: user._id
+              });
+            } catch (err) {
+              alert("❌ Failed to save event: " + err.message);
+            }
+          }
+          calendar.unselect();
+        },
+
+        events: async function (fetchInfo, successCallback, failureCallback) {
+          try {
+            const res = await fetch(`http://localhost:5000/api/calendar/events/${user._id}`, {
+              headers: {
+                "Authorization": `Bearer ${token}`
+              }
+            });
+
+            const data = await res.json();
+
+            // Transform dates to be interpreted correctly by FullCalendar
+            const formattedEvents = data.map(event => ({
+              id: event._id,
+              title: event.title,
+              start: new Date(event.start),
+              end: new Date(event.end),
+              userId: event.userId
+            }));
+
+            successCallback(formattedEvents);
+          } catch (err) {
+            failureCallback(err);
+          }
+        }
+      });
+
+      calendar.render();
+
+      async function updateEventTime(event) {
+        const token = localStorage.getItem("token");
+
+        try {
+          const res = await fetch(`http://localhost:5000/api/calendar/events/${event.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              start: event.start.toISOString(),
+              end: event.end.toISOString()
+            })
+          });
+
+          const result = await res.json();
+          if (!res.ok) throw new Error(result.message);
+
+          console.log("✅ Event updated in backend:", result);
+        } catch (err) {
+          alert("❌ Failed to update event: " + err.message);
+        }
+      }
+
+    });
+
+  </script>
 </body>
+
 </html>
