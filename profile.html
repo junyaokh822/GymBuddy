@@ -342,8 +342,9 @@
         }
       });
 
-      // Profile picture load
-      const savedImg = localStorage.getItem("profilePic");
+      // Profile picture load - UPDATED with user-specific key
+      const profilePicKey = `profilePic_${user._id}`; // Create a unique key for each user
+      const savedImg = localStorage.getItem(profilePicKey);
       if (savedImg) {
         profilePic.src = savedImg;
         profilePic.style.display = "block";
@@ -358,7 +359,9 @@
             profilePic.src = e.target.result;
             profilePic.style.display = "block";
             plusIcon.style.display = "none";
-            localStorage.setItem("profilePic", e.target.result);
+
+            // Store with user-specific key
+            localStorage.setItem(profilePicKey, e.target.result);
           };
           reader.readAsDataURL(file);
         }

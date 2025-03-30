@@ -58,6 +58,11 @@
 
 <body>
   <h1>My Gym Availability Calendar</h1>
+<div style="text-align:center; margin-bottom: 20px;">
+  <button class="btn" onclick="window.location.href='universal-calendar.html'">
+    🌐 View Universal Gym Availability
+  </button>
+</div>
 
   <div id="calendar"></div>
 
@@ -96,10 +101,16 @@
         eventClick: function (info) {
           const modal = document.getElementById('editModal');
           const input = document.getElementById('editTitleInput');
+          const shareCheckbox = document.getElementById('shareEventCheckbox');
           const updateBtn = document.getElementById('updateEventBtn');
           const deleteBtn = document.getElementById('deleteEventBtn');
 
           input.value = info.event.title;
+          
+          // Set checkbox based on the current shared status
+          // If the event doesn't have a shared property, default to false
+          shareCheckbox.checked = info.event.extendedProps.shared || false;
+          
           modal.style.display = 'block';
 
           // Clear any previous click handlers
@@ -108,9 +119,12 @@
 
           updateBtn.onclick = () => {
             const newTitle = input.value.trim();
+            const isShared = shareCheckbox.checked;
+            
             if (newTitle) {
               info.event.setProp('title', newTitle);
-              updateEventTime(info.event, newTitle);
+              // We can't directly modify extendedProps, so we'll do it in the API call
+              updateEventTime(info.event, newTitle, isShared);
             }
             modal.style.display = 'none';
           };
@@ -123,7 +137,6 @@
             modal.style.display = 'none';
           };
         },
-
 
         // Update tooltip to use local time
         eventDidMount: function (info) {
@@ -145,11 +158,14 @@
         select: async function (info) {
           const title = prompt("Enter session title:");
           if (title) {
+            const shareResponse = confirm("Share this session on the Universal Calendar?");
+            
             const newEvent = {
               title: title,
               start: info.startStr,
               end: info.endStr,
-              userId: user._id
+              userId: user._id,
+              shared: shareResponse // Set the shared value based on user choice
             };
 
             // Save to backend
@@ -171,7 +187,11 @@
                 title: title,
                 start: info.start,
                 end: info.end,
-                userId: user._id
+                userId: user._id,
+                shared: shareResponse,
+                extendedProps: {
+                  shared: shareResponse
+                }
               });
             } catch (err) {
               alert("❌ Failed to save event: " + err.message);
@@ -196,7 +216,10 @@
               title: event.title,
               start: new Date(event.start),
               end: new Date(event.end),
-              userId: event.userId
+              userId: event.userId,
+              extendedProps: {
+                shared: event.shared || false
+              }
             }));
 
             successCallback(formattedEvents);
@@ -208,7 +231,7 @@
 
       calendar.render();
 
-      async function updateEventTime(event, newTitle = null) {
+      async function updateEventTime(event, newTitle = null, shared = null) {
         const token = localStorage.getItem("token");
 
         try {
@@ -221,12 +244,18 @@
             body: JSON.stringify({
               title: newTitle ?? event.title,
               start: event.start.toISOString(),
-              end: event.end.toISOString()
+              end: event.end.toISOString(),
+              shared: shared !== null ? shared : event.extendedProps.shared || false
             })
           });
 
           const result = await res.json();
           if (!res.ok) throw new Error(result.message);
+
+          // Update the event's extended properties if shared status changed
+          if (shared !== null) {
+            event.setExtendedProp('shared', shared);
+          }
 
           console.log("✅ Event updated in backend:", result);
         } catch (err) {
@@ -253,6 +282,7 @@
           alert("❌ Could not delete event: " + err.message);
         }
       }
+      
       // Handle modal close logic
       document.getElementById("closeModalBtn").onclick = () => {
         document.getElementById("editModal").style.display = "none";
@@ -264,22 +294,10 @@
           document.getElementById("editModal").style.display = "none";
         }
       };
-
-
-
     });
-
   </script>
-  <!-- <div id="editModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
-  background:white; color:black; padding:20px; border-radius:10px; box-shadow:0 0 20px rgba(0,0,0,0.5); z-index:1000;">
-    <h3>Edit Event</h3>
-    <input type="text" id="editTitleInput" style="width:100%; padding:8px; margin-top:10px;" />
-    <div style="margin-top: 15px; text-align:right;">
-      <button id="updateEventBtn" style="padding:8px 16px; margin-right:10px;">Update</button>
-      <button id="deleteEventBtn" style="padding:8px 16px; background:red; color:white;">Delete</button>
-    </div>
-  </div> -->
-  <!-- 🔄 UPDATED MODAL HTML -->
+
+  <!-- Updated Modal HTML with sharing checkbox -->
   <div id="editModal"
     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); z-index:1000;">
     <div id="modalContent"
@@ -291,14 +309,20 @@
 
       <h3>Edit Event</h3>
       <input type="text" id="editTitleInput" style="width:100%; padding:8px; margin-top:10px;" />
+      
+      <!-- Add sharing checkbox -->
+      <div style="margin-top: 15px;">
+        <label>
+          <input type="checkbox" id="shareEventCheckbox" /> 
+          Share on Universal Calendar
+        </label>
+      </div>
+      
       <div style="margin-top: 15px; text-align:right;">
         <button id="updateEventBtn" style="padding:8px 16px; margin-right:10px;">Update</button>
         <button id="deleteEventBtn" style="padding:8px 16px; background:red; color:white;">Delete</button>
       </div>
     </div>
   </div>
-
-
 </body>
-
 </html>
