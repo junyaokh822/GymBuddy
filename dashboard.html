@@ -1,8 +1,3 @@
-
-
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -10,6 +5,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GymBuddy | Dashboard</title>
+  <!-- Socket.IO Client Library -->
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -50,19 +47,106 @@
     .logout-btn:hover {
       background-color: #eee;
     }
+    
+    .notification-badge {
+      display: inline-block;
+      background-color: red;
+      color: white;
+      border-radius: 50%;
+      padding: 2px 6px;
+      font-size: 0.7rem;
+      margin-left: 5px;
+    }
+    
+    .connection-status {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+
+    .status-connected {
+      color: #4cd964;
+    }
+
+    .status-disconnected {
+      color: #ff3b30;
+    }
   </style>
 </head>
 
 <body>
+  <div class="connection-status" id="connectionStatus"></div>
   <h1>Welcome to GymBuddy!</h1>
   <div class="user-info" id="userEmail">Loading user info...</div>
   <button class="logout-btn" onclick="goToProfile()">My Profile</button>
   <button class="logout-btn" onclick="goToCalendar()">My Calendar</button>
   <button class="logout-btn" onclick="goToMatches()">Find Gym Buddies</button>
+  <button class="logout-btn" onclick="goToMessages()">Messages <span id="unreadBadge" class="notification-badge" style="display: none;"></span></button>
   <button class="logout-btn" onclick="logout()">Log Out</button>
 
 
   <script>
+    let socket = null;
+  
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize Socket.IO
+      initSocket();
+      
+      // Fetch user data
+      fetchUserData();
+    });
+    
+    function initSocket() {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      
+      // Connect to Socket.IO server
+      socket = io('http://localhost:5000', {
+        auth: {
+          token: token
+        }
+      });
+      
+      // Handle connection events
+      socket.on('connect', () => {
+        console.log('Connected to socket server');
+        updateConnectionStatus(true);
+      });
+      
+      socket.on('disconnect', () => {
+        console.log('Disconnected from socket server');
+        updateConnectionStatus(false);
+      });
+      
+      socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        updateConnectionStatus(false, error.message);
+      });
+      
+      // Listen for new unread message notifications
+      socket.on('new_unread_message', (data) => {
+        console.log('New unread message notification:', data);
+        incrementUnreadBadge();
+      });
+      
+      // Also check unread messages via API for messages received when offline
+      checkUnreadMessages();
+    }
+    
+    function updateConnectionStatus(connected, message = '') {
+      const statusElement = document.getElementById('connectionStatus');
+      
+      if (connected) {
+        statusElement.textContent = '● Connected';
+        statusElement.className = 'connection-status status-connected';
+      } else {
+        statusElement.textContent = '● Disconnected' + (message ? `: ${message}` : '');
+        statusElement.className = 'connection-status status-disconnected';
+      }
+    }
+  
     async function fetchUserData() {
       const token = localStorage.getItem("token");
       const user = JSON.parse(localStorage.getItem("user"));
@@ -97,6 +181,11 @@
     }
 
     function logout() {
+      // Disconnect socket
+      if (socket) {
+        socket.disconnect();
+      }
+      
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       window.location.href = "index.html";
@@ -113,8 +202,55 @@
     function goToMatches() {
       window.location.href = "matches.html";
     }
-
-    fetchUserData();
+    
+    function goToMessages() {
+      window.location.href = "messages.html";
+    }
+    
+    // Check for unread messages
+    async function checkUnreadMessages() {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      
+      try {
+        const response = await fetch("http://localhost:5000/api/messages/unread/count", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const unreadBadge = document.getElementById("unreadBadge");
+          
+          if (data.success && data.unreadCount > 0) {
+            unreadBadge.textContent = data.unreadCount > 99 ? "99+" : data.unreadCount;
+            unreadBadge.style.display = "inline-block";
+          } else {
+            unreadBadge.style.display = "none";
+          }
+        }
+      } catch (error) {
+        console.error("Error checking unread messages:", error);
+      }
+    }
+    
+    function incrementUnreadBadge() {
+      const unreadBadge = document.getElementById("unreadBadge");
+      let currentCount = parseInt(unreadBadge.textContent, 10) || 0;
+      currentCount++;
+      
+      unreadBadge.textContent = currentCount > 99 ? "99+" : currentCount;
+      unreadBadge.style.display = "inline-block";
+    }
+    
+    // Clean up socket connection when leaving the page
+    window.addEventListener('beforeunload', () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    });
   </script>
 </body>
 </html>

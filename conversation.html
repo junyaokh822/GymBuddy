@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GymBuddy | Conversation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Socket.IO Client Library -->
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to right, #4facfe, #00f2fe);
+      color: white;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .chat-header {
+      background: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(10px);
+      padding: 15px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+    }
+
+    .back-button {
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 0 15px 0 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .profile-pic {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-right: 15px;
+    }
+
+    .user-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .message {
+      max-width: 70%;
+      padding: 10px 15px;
+      border-radius: 18px;
+      margin-bottom: 10px;
+      word-wrap: break-word;
+      position: relative;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message-received {
+      align-self: flex-start;
+      background-color: rgba(255, 255, 255, 0.15);
+      border-bottom-left-radius: 4px;
+    }
+
+    .message-sent {
+      align-self: flex-end;
+      background-color: #0084ff;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message-timestamp {
+      font-size: 0.7rem;
+      opacity: 0.7;
+      margin-top: 5px;
+      text-align: right;
+    }
+
+    .message-status {
+      font-size: 0.7rem;
+      opacity: 0.7;
+      margin-top: 2px;
+      text-align: right;
+    }
+
+    .day-divider {
+      display: flex;
+      align-items: center;
+      margin: 20px 0;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.8rem;
+    }
+
+    .day-divider::before,
+    .day-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .day-divider::before {
+      margin-right: 10px;
+    }
+
+    .day-divider::after {
+      margin-left: 10px;
+    }
+
+    .chat-input-container {
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 12px 15px;
+      border-radius: 25px;
+      border: none;
+      background-color: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-family: inherit;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .chat-input::placeholder {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .send-button {
+      margin-left: 10px;
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      background-color: #0084ff;
+      color: white;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: background-color 0.2s ease;
+    }
+
+    .send-button:hover {
+      background-color: #0077e6;
+    }
+
+    .send-button:disabled {
+      background-color: rgba(255, 255, 255, 0.2);
+      cursor: not-allowed;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .empty-conversation {
+      text-align: center;
+      padding: 40px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .message-options {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      cursor: pointer;
+      font-size: 1.2rem;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .message:hover .message-options {
+      opacity: 0.7;
+    }
+
+    .message-menu {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 8px;
+      padding: 10px 0;
+      min-width: 150px;
+      right: 0;
+      top: 25px;
+      z-index: 100;
+      display: none;
+    }
+
+    .message-menu-item {
+      padding: 8px 15px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .message-menu-item:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .show-menu {
+      display: block;
+      animation: fadeIn 0.2s ease;
+    }
+    
+    .typing-indicator {
+      display: none;
+      align-self: flex-start;
+      background-color: rgba(255, 255, 255, 0.1);
+      padding: 8px 15px;
+      border-radius: 15px;
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+      opacity: 0.7;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .typing-dots {
+      display: inline-block;
+    }
+
+    .typing-dot {
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background-color: white;
+      margin: 0 1px;
+      opacity: 0.7;
+      animation: typingAnimation 1.4s infinite ease-in-out;
+    }
+
+    .typing-dot:nth-child(1) {
+      animation-delay: 0s;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes typingAnimation {
+      0%, 60%, 100% {
+        transform: translateY(0);
+      }
+      30% {
+        transform: translateY(-5px);
+      }
+    }
+
+    .connection-status {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+
+    .status-connected {
+      color: #4cd964;
+    }
+
+    .status-disconnected {
+      color: #ff3b30;
+    }
+
+    @media (max-width: 768px) {
+      .message {
+        max-width: 80%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <div class="user-info">
+        <button class="back-button" onclick="goBack()">←</button>
+        <div class="profile-pic" id="userInitials"></div>
+        <div class="user-name" id="userName">Loading...</div>
+      </div>
+      <div class="connection-status" id="connectionStatus"></div>
+    </div>
+
+    <div class="chat-messages" id="chatMessages">
+      <div class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading messages...</p>
+      </div>
+    </div>
+    
+    <div class="typing-indicator" id="typingIndicator">
+      <span id="typingUser">User</span> is typing
+      <span class="typing-dots">
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+      </span>
+    </div>
+
+    <div class="chat-input-container">
+      <input type="text" id="messageInput" class="chat-input" placeholder="Type a message..." autocomplete="off">
+      <button id="sendButton" class="send-button" onclick="sendMessage()" disabled>➤</button>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const otherUserId = urlParams.get('userId');
+    
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    
+    if (!token || !currentUser || !otherUserId) {
+      alert('Invalid session or missing user information');
+      window.location.href = 'messages.html';
+    }
+    
+    let activeMessageMenu = null;
+    let socket = null;
+    let typingTimer = null;
+    let otherUserDetails = null;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize Socket.IO
+      initSocket();
+      
+      // Load messages
+      loadMessages();
+      
+      // Enable send button when message input has content
+      const messageInput = document.getElementById('messageInput');
+      messageInput.addEventListener('input', function() {
+        document.getElementById('sendButton').disabled = !this.value.trim();
+        
+        // Emit typing event
+        if (this.value.trim() && socket) {
+          socket.emit('typing', { to: otherUserId });
+        }
+      });
+      
+      // Allow sending message with Enter key
+      messageInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && this.value.trim()) {
+          sendMessage();
+        }
+      });
+      
+      // Close message menu when clicking elsewhere
+      document.addEventListener('click', function(e) {
+        if (activeMessageMenu && !e.target.closest('.message-options') && !e.target.closest('.message-menu')) {
+          activeMessageMenu.style.display = 'none';
+          activeMessageMenu = null;
+        }
+      });
+    });
+    
+    function initSocket() {
+      // Connect to Socket.IO server
+      socket = io('http://localhost:5000', {
+        auth: {
+          token: token
+        }
+      });
+      
+      // Handle connection events
+      socket.on('connect', () => {
+        console.log('Connected to socket server');
+        updateConnectionStatus(true);
+      });
+      
+      socket.on('disconnect', () => {
+        console.log('Disconnected from socket server');
+        updateConnectionStatus(false);
+      });
+      
+      socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        updateConnectionStatus(false, error.message);
+      });
+      
+      // Handle receiving a new message
+      socket.on('receive_message', (data) => {
+        console.log('New message received:', data);
+        
+        // Only handle messages from the current conversation partner
+        if (data.sender.toString() === otherUserId.toString()) {
+          // Add the message to the UI
+          addMessageToUI({
+            _id: data._id,
+            content: data.content,
+            createdAt: data.createdAt,
+            sender: 'other',
+            senderName: data.senderName,
+            read: false
+          });
+          
+          // Hide typing indicator
+          hideTypingIndicator();
+          
+          // Mark message as read
+          markMessageAsRead(data._id);
+        }
+      });
+      
+      // Handle message read events
+      socket.on('messages_read', (data) => {
+        console.log('Messages read event:', data);
+        
+        // Update the read status of messages in this conversation
+        if (data.conversation.toString() === otherUserId.toString()) {
+          const sentMessages = document.querySelectorAll('.message-sent .message-status');
+          sentMessages.forEach(status => {
+            status.textContent = 'Read';
+          });
+        }
+      });
+      
+      // Handle message deletion
+      socket.on('message_deleted', (data) => {
+        console.log('Message deleted:', data);
+        
+        const messageElement = document.getElementById(`message-${data.messageId}`);
+        if (messageElement) {
+          messageElement.style.opacity = '0';
+          setTimeout(() => {
+            messageElement.remove();
+            
+            // Check if there are no messages left
+            if (document.querySelectorAll('.message').length === 0) {
+              document.getElementById('chatMessages').innerHTML = `
+                <div class="empty-conversation">
+                  <p>No messages yet.</p>
+                  <p>Send a message to start the conversation!</p>
+                </div>
+              `;
+            }
+          }, 300);
+        }
+      });
+      
+      // Handle typing indicator
+      socket.on('typing', (data) => {
+        console.log('Typing indicator received:', data);
+        
+        if (data.from.toString() === otherUserId.toString()) {
+          showTypingIndicator(data.name || otherUserDetails?.firstname || 'User');
+          
+          // Clear previous timer if exists
+          if (typingTimer) clearTimeout(typingTimer);
+          
+          // Hide typing indicator after 3 seconds of no updates
+          typingTimer = setTimeout(() => {
+            hideTypingIndicator();
+          }, 3000);
+        }
+      });
+    }
+    
+    function updateConnectionStatus(connected, message = '') {
+      const statusElement = document.getElementById('connectionStatus');
+      
+      if (connected) {
+        statusElement.textContent = '● Connected';
+        statusElement.className = 'connection-status status-connected';
+      } else {
+        statusElement.textContent = '● Disconnected' + (message ? `: ${message}` : '');
+        statusElement.className = 'connection-status status-disconnected';
+      }
+    }
+    
+    function showTypingIndicator(name) {
+      const typingIndicator = document.getElementById('typingIndicator');
+      document.getElementById('typingUser').textContent = name;
+      typingIndicator.style.display = 'block';
+      
+      // Make sure it's visible at the bottom of the chat
+      const chatMessages = document.getElementById('chatMessages');
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    function hideTypingIndicator() {
+      document.getElementById('typingIndicator').style.display = 'none';
+    }
+    
+    function goBack() {
+      window.location.href = 'messages.html';
+    }
+    
+    async function loadMessages() {
+      try {
+        const response = await fetch(`http://localhost:5000/api/messages/${otherUserId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to load messages');
+        }
+        
+        // Store other user details
+        otherUserDetails = data.otherUser;
+        
+        // Update UI with other user's info
+        document.getElementById('userInitials').textContent = 
+          `${data.otherUser.firstname.charAt(0)}${data.otherUser.lastname.charAt(0)}`;
+        document.getElementById('userName').textContent = 
+          `${data.otherUser.firstname} ${data.otherUser.lastname}`;
+        
+        // Render messages
+        renderMessages(data.messages || []);
+        
+      } catch (error) {
+        console.error('Error loading messages:', error);
+        document.getElementById('chatMessages').innerHTML = `
+          <div class="empty-conversation">
+            <p>Error loading messages: ${error.message}</p>
+            <button onclick="loadMessages()">Try Again</button>
+          </div>
+        `;
+      }
+    }
+    
+    function renderMessages(messages) {
+      const chatMessages = document.getElementById('chatMessages');
+      
+      if (messages.length === 0) {
+        chatMessages.innerHTML = `
+          <div class="empty-conversation">
+            <p>No messages yet.</p>
+            <p>Send a message to start the conversation!</p>
+          </div>
+        `;
+        return;
+      }
+      
+      let html = '';
+      let currentDay = null;
+      
+      messages.forEach((message, index) => {
+        // Check if we need to add a day divider
+        const messageDate = new Date(message.createdAt);
+        const messageDay = messageDate.toLocaleDateString();
+        
+        if (messageDay !== currentDay) {
+          currentDay = messageDay;
+          
+          // Compare to today/yesterday
+          const today = new Date();
+          const yesterday = new Date(today);
+          yesterday.setDate(today.getDate() - 1);
+          
+          let dayLabel;
+          if (messageDay === today.toLocaleDateString()) {
+            dayLabel = 'Today';
+          } else if (messageDay === yesterday.toLocaleDateString()) {
+            dayLabel = 'Yesterday';
+          } else {
+            dayLabel = messageDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+          }
+          
+          html += `<div class="day-divider">${dayLabel}</div>`;
+        }
+        
+        const isCurrentUser = message.sender === 'me';
+        const messageClass = isCurrentUser ? 'message-sent' : 'message-received';
+        const messageTime = messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        // Only show options menu for messages sent by current user
+        const optionsMenu = isCurrentUser ? `
+          <div class="message-options" onclick="toggleMessageMenu(event, '${message._id}')">⋮</div>
+          <div class="message-menu" id="menu-${message._id}">
+            <div class="message-menu-item" onclick="deleteMessage('${message._id}')">Delete</div>
+          </div>
+        ` : '';
+        
+        html += `
+          <div class="message ${messageClass}" id="message-${message._id}">
+            ${message.content}
+            <div class="message-timestamp">${messageTime}</div>
+            ${isCurrentUser ? `<div class="message-status">${message.read ? 'Read' : 'Sent'}</div>` : ''}
+            ${optionsMenu}
+          </div>
+        `;
+      });
+      
+      chatMessages.innerHTML = html;
+      
+      // Scroll to the bottom
+      scrollToBottom();
+    }
+    
+    function addMessageToUI(message) {
+      const chatMessages = document.getElementById('chatMessages');
+      
+      // Remove empty conversation placeholder if it exists
+      const emptyConversation = chatMessages.querySelector('.empty-conversation');
+      if (emptyConversation) {
+        chatMessages.innerHTML = '';
+      }
+      
+      const messageDate = new Date(message.createdAt);
+      const messageTime = messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      const isCurrentUser = message.sender === 'me';
+      const messageClass = isCurrentUser ? 'message-sent' : 'message-received';
+      
+      // Check if we need to add a day divider
+      const messageDay = messageDate.toLocaleDateString();
+      const lastDayDivider = chatMessages.querySelector('.day-divider:last-of-type');
+      const today = new Date();
+      
+      if (!lastDayDivider || lastDayDivider.textContent !== 'Today' && messageDay === today.toLocaleDateString()) {
+        const dayDivider = document.createElement('div');
+        dayDivider.className = 'day-divider';
+        dayDivider.textContent = 'Today';
+        chatMessages.appendChild(dayDivider);
+      }
+      
+      // Only show options menu for messages sent by current user
+      const optionsMenu = isCurrentUser ? `
+        <div class="message-options" onclick="toggleMessageMenu(event, '${message._id}')">⋮</div>
+        <div class="message-menu" id="menu-${message._id}">
+          <div class="message-menu-item" onclick="deleteMessage('${message._id}')">Delete</div>
+        </div>
+      ` : '';
+      
+      const messageElement = document.createElement('div');
+      messageElement.className = `message ${messageClass}`;
+      messageElement.id = `message-${message._id}`;
+      messageElement.innerHTML = `
+        ${message.content}
+        <div class="message-timestamp">${messageTime}</div>
+        ${isCurrentUser ? `<div class="message-status">${message.read ? 'Read' : 'Sent'}</div>` : ''}
+        ${optionsMenu}
+      `;
+      
+      chatMessages.appendChild(messageElement);
+      
+      // Scroll to the bottom
+      scrollToBottom();
+    }
+    
+    function scrollToBottom() {
+      const chatMessages = document.getElementById('chatMessages');
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    function toggleMessageMenu(event, messageId) {
+      event.stopPropagation();
+      
+      // Close any open menu first
+      if (activeMessageMenu) {
+        activeMessageMenu.style.display = 'none';
+      }
+      
+      const menu = document.getElementById(`menu-${messageId}`);
+      menu.classList.toggle('show-menu');
+      
+      if (menu.classList.contains('show-menu')) {
+        activeMessageMenu = menu;
+      } else {
+        activeMessageMenu = null;
+      }
+    }
+    
+    async function sendMessage() {
+      const messageInput = document.getElementById('messageInput');
+      const content = messageInput.value.trim();
+      
+      if (!content) return;
+      
+      // Clear input and disable send button
+      messageInput.value = '';
+      document.getElementById('sendButton').disabled = true;
+      
+      try {
+        const response = await fetch('http://localhost:5000/api/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            recipientId: otherUserId,
+            content
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to send message');
+        }
+        
+        // Add the sent message to the UI immediately
+        addMessageToUI({
+          _id: data.data._id,
+          content,
+          createdAt: new Date(),
+          sender: 'me',
+          read: false
+        });
+        
+      } catch (error) {
+        console.error('Error sending message:', error);
+        alert(`Failed to send message: ${error.message}`);
+        // Restore the message in the input
+        messageInput.value = content;
+        document.getElementById('sendButton').disabled = false;
+      }
+    }
+    
+    async function deleteMessage(messageId) {
+      if (!confirm('Are you sure you want to delete this message?')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`http://localhost:5000/api/messages/${messageId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to delete message');
+        }
+        
+        // Remove the message from the UI
+        const messageElement = document.getElementById(`message-${messageId}`);
+        if (messageElement) {
+          messageElement.style.opacity = '0';
+          setTimeout(() => {
+            messageElement.remove();
+            
+            // Check if there are no messages left
+            if (document.querySelectorAll('.message').length === 0) {
+              document.getElementById('chatMessages').innerHTML = `
+                <div class="empty-conversation">
+                  <p>No messages yet.</p>
+                  <p>Send a message to start the conversation!</p>
+                </div>
+              `;
+            }
+          }, 300);
+        }
+        
+      } catch (error) {
+        console.error('Error deleting message:', error);
+        alert(`Failed to delete message: ${error.message}`);
+      } finally {
+        // Close the menu
+        if (activeMessageMenu) {
+          activeMessageMenu.style.display = 'none';
+          activeMessageMenu = null;
+        }
+      }
+    }
+    
+    async function markMessageAsRead(messageId) {
+      // In a real implementation, you'd call an API to mark the message as read
+      // Here, we're just using the existing conversation fetch, which automatically marks messages as read
+      try {
+        const response = await fetch(`http://localhost:5000/api/messages/${otherUserId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to mark message as read');
+        }
+      } catch (error) {
+        console.error('Error marking message as read:', error);
+      }
+    }
+    
+    // Clean up socket connection when leaving the page
+    window.addEventListener('beforeunload', () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    });
+  </script>
+</body>
+
+</html>
