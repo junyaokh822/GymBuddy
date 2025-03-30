@@ -1,3 +1,8 @@
+
+
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -27,17 +32,6 @@
       margin-top: 10px;
     }
 
-    /* .logout-btn {
-      margin-top: 20px;
-      padding: 10px 25px;
-      font-size: 1rem;
-      background-color: white;
-      color: #333;
-      border: none;
-      border-radius: 25px;
-      cursor: pointer;
-      transition: 0.3s;
-    } */
     .logout-btn {
       margin-top: 20px;
       padding: 10px 25px;
@@ -59,13 +53,12 @@
   </style>
 </head>
 
-
-
 <body>
   <h1>Welcome to GymBuddy!</h1>
   <div class="user-info" id="userEmail">Loading user info...</div>
   <button class="logout-btn" onclick="goToProfile()">My Profile</button>
   <button class="logout-btn" onclick="goToCalendar()">My Calendar</button>
+  <button class="logout-btn" onclick="goToMatches()">Find Gym Buddies</button>
   <button class="logout-btn" onclick="logout()">Log Out</button>
 
 
@@ -116,7 +109,12 @@
     function goToCalendar() {
       window.location.href = "calendar.html";
     }
+    
+    function goToMatches() {
+      window.location.href = "matches.html";
+    }
 
     fetchUserData();
   </script>
 </body>
+</html>

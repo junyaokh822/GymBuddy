@@ -17,8 +17,15 @@ const verifyToken = (req, res, next) => {
         // Verify the token
         const verified = jwt.verify(token, process.env.JWT_SECRET);
         
+        console.log("Token verified successfully:", verified);
+        
         // Attach verified user to request object
         req.user = verified;
+        
+        // Print debug info
+        if (typeof verified === 'object') {
+            console.log("User ID from token:", verified.id || verified._id || "No ID found");
+        }
         
         // Proceed to next middleware
         next();

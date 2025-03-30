@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GymBuddy | Find Matches</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to right, #4facfe, #00f2fe);
+      color: white;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    .subheading {
+      font-size: 1.2rem;
+      opacity: 0.9;
+    }
+
+    .matches-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 25px;
+      margin-top: 30px;
+    }
+
+    .match-card {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 25px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .match-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .match-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 15px auto;
+      font-size: 2rem;
+      font-weight: 600;
+    }
+
+    .match-name {
+      font-size: 1.4rem;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 5px;
+    }
+
+    .match-email {
+      text-align: center;
+      margin-bottom: 20px;
+      opacity: 0.8;
+      font-size: 0.9rem;
+    }
+
+    .match-stats {
+      margin-top: 15px;
+      background: rgba(0, 0, 0, 0.1);
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .match-stats div {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .match-stats div:last-child {
+      margin-bottom: 0;
+    }
+
+    .match-preferences {
+      margin-top: 15px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .preference-tag {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 4px 10px;
+      border-radius: 50px;
+      font-size: 0.8rem;
+    }
+
+    .connect-btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background: black;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .connect-btn:hover {
+      background: #333;
+    }
+
+    .filters {
+      background: rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .filter-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .filter-group input,
+    .filter-group select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-family: inherit;
+    }
+
+    .filter-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .filter-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background: black;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      font-family: inherit;
+    }
+
+    .filter-btn:hover {
+      background: #333;
+    }
+
+    .no-matches {
+      text-align: center;
+      padding: 40px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      margin-top: 30px;
+    }
+
+    .no-matches h3 {
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+    }
+
+    .nav-buttons {
+      display: flex;
+      justify-content: center;
+      margin-top: 40px;
+      gap: 20px;
+    }
+
+    .nav-btn {
+      padding: 12px 24px;
+      background: black;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .nav-btn:hover {
+      background: #333;
+    }
+
+    /* Modal styling */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-content {
+      background: white;
+      color: #333;
+      margin: 10% auto;
+      padding: 30px;
+      border-radius: 15px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    .modal h2 {
+      color: #333;
+      margin-top: 0;
+    }
+
+    .modal label {
+      display: block;
+      margin: 15px 0 5px 0;
+      color: #333;
+    }
+
+    .modal textarea {
+      width: 100%;
+      height: 120px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-family: inherit;
+      resize: vertical;
+    }
+
+    .modal-buttons {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .modal-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #4facfe;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      font-family: inherit;
+    }
+
+    .modal-btn:hover {
+      background: #3d9be0;
+    }
+
+    .matching-score {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .matches-container {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      }
+
+      .filters-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>Find Gym Buddies</h1>
+      <p class="subheading">Connect with people who share your workout schedule and preferences</p>
+    </header>
+
+    <div class="filters">
+      <form id="filters-form">
+        <div class="filters-grid">
+          <div class="filter-group">
+            <label for="minOverlap">Minimum Schedule Overlap (hours)</label>
+            <input type="number" id="minOverlap" name="threshold" min="0.5" max="10" step="0.5" value="1">
+          </div>
+          <div class="filter-group">
+            <label for="daysAhead">Days to Look Ahead</label>
+            <select id="daysAhead" name="daysAhead">
+              <option value="7">1 week</option>
+              <option value="14" selected>2 weeks</option>
+              <option value="30">1 month</option>
+            </select>
+          </div>
+        </div>
+        <div class="filter-actions">
+          <button type="submit" class="filter-btn">Find Matches</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="matches-area">
+      <div class="loading">
+        <div class="loading-spinner"></div>
+        <p>Finding your perfect gym buddies...</p>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="nav-btn" onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
+    </div>
+  </div>
+
+  <!-- Connection Modal -->
+  <div id="connect-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal()">&times;</span>
+      <h2>Connect with <span id="modal-name">Gym Buddy</span></h2>
+      <p>Send a message to introduce yourself and start the conversation.</p>
+
+      <form id="connect-form">
+        <input type="hidden" id="match-id" name="matchId">
+        <label for="message">Your Message:</label>
+        <textarea id="message" name="message" placeholder="Hi! I noticed we have similar gym schedules. Would you like to work out together?" required></textarea>
+
+        <div class="modal-buttons">
+          <button type="submit" class="modal-btn">Send Request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Check authentication
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user'));
+      
+      if (!token || !user) {
+        alert('Please log in to find gym buddies');
+        window.location.href = 'index.html';
+        return;
+      }
+      
+      // Get initial matches
+      findMatches();
+      
+      // Handle filters form submission
+      document.getElementById('filters-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        findMatches();
+      });
+      
+      // Handle connect form submission
+      document.getElementById('connect-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        sendConnectionRequest();
+      });
+    });
+    
+    async function findMatches() {
+      try {
+        // Show loading state
+        document.getElementById('matches-area').innerHTML = `
+          <div class="loading">
+            <div class="loading-spinner"></div>
+            <p>Finding your perfect gym buddies...</p>
+          </div>
+        `;
+        
+        // Get filter values
+        const threshold = document.getElementById('minOverlap').value;
+        const daysAhead = document.getElementById('daysAhead').value;
+        
+        console.log(`Searching for matches with threshold: ${threshold}, daysAhead: ${daysAhead}`);
+        
+        // Add a timeout to prevent infinite loading
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Request timed out after 15 seconds")), 15000);
+        });
+        
+        // Fetch matches with timeout
+        const fetchPromise = fetch(`http://localhost:5000/api/matches?threshold=${threshold}&daysAhead=${daysAhead}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        // Race between the actual fetch and the timeout
+        const response = await Promise.race([fetchPromise, timeoutPromise]);
+        
+        // Parse response
+        console.log('Got response, parsing JSON...');
+        const responseText = await response.text();
+        console.log('Response text:', responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error('Error parsing JSON:', e);
+          throw new Error(`Invalid response from server: ${responseText.substring(0, 100)}...`);
+        }
+        
+        console.log('Parsed data:', data);
+        
+        if (!response.ok) {
+          throw new Error(data.message || `Server error: ${response.status}`);
+        }
+        
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to fetch matches');
+        }
+        
+        // Display matches - ensure we're working with an array even if matches is null
+        renderMatches(data.matches || []);
+        
+      } catch (error) {
+        console.error('Error finding matches:', error);
+        document.getElementById('matches-area').innerHTML = `
+          <div class="no-matches">
+            <h3>Error Finding Matches</h3>
+            <p>${error.message || 'Please try again later'}</p>
+            <p>Make sure you have added gym sessions to your calendar and marked them as shared.</p>
+            <button onclick="findMatches()" class="filter-btn" style="margin-top: 20px;">Try Again</button>
+          </div>
+        `;
+      }
+    }
+    
+    function renderMatches(matches) {
+      const matchesArea = document.getElementById('matches-area');
+      
+      // Ensure matches is an array
+      if (!Array.isArray(matches)) {
+        console.error('Matches is not an array:', matches);
+        matches = [];
+      }
+      
+      if (matches.length === 0) {
+        matchesArea.innerHTML = `
+          <div class="no-matches">
+            <h3>No Matches Found</h3>
+            <p>This could be because:</p>
+            <ul style="text-align: left; margin: 20px auto; max-width: 500px;">
+              <li>You haven't added any gym preference from your profile page</li>
+              <li>You haven't added any gym sessions to your calendar</li>
+              <li>You haven't marked any sessions as "shared"</li>
+              <li>Other users haven't shared their gym schedules</li>
+              <li>Your schedule doesn't overlap with any other users</li>
+            </ul>
+            <p>Try adding more sessions or lowering the minimum overlap requirement.</p>
+            <div style="margin-top: 20px;">
+              <button onclick="window.location.href='calendar.html'" class="filter-btn">Go to Calendar</button>
+              <button onclick="window.location.href='profile.html'" class="filter-btn" style="margin-left: 10px;">Go to Profile</button>
+              <button onclick="findMatches()" class="filter-btn" style="margin-left: 10px;">Try Again</button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+      
+      // If we got matches, display them
+      let matchesHTML = '<div class="matches-container">';
+      
+      matches.forEach(match => {
+        // Ensure properties exist and have default values if missing
+        const compatibilityPercentage = Math.round((match.compatibilityScore || 0) * 100);
+        const overlapHours = match.overlapHours || 0;
+        const preferenceMatch = match.preferenceMatch || 0;
+        
+        // Get user initials for avatar
+        const firstname = match.user?.firstname || 'Unknown';
+        const lastname = match.user?.lastname || 'User';
+        const initials = `${firstname.charAt(0)}${lastname.charAt(0)}`;
+        
+        // Create HTML for preference tags
+        let preferencesHTML = '';
+        if (match.user?.preferences && Array.isArray(match.user.preferences) && match.user.preferences.length > 0) {
+          match.user.preferences.forEach(pref => {
+            preferencesHTML += `<span class="preference-tag">${pref}</span>`;
+          });
+        } else {
+          preferencesHTML = '<span class="preference-tag">No preferences set</span>';
+        }
+        
+        // Check if there's any shared preferences to highlight
+        let sharedPreferencesHTML = '';
+        if (match.sharedPreferences && match.sharedPreferences.length > 0) {
+          sharedPreferencesHTML = `
+            <div style="margin: 15px 0 5px 0">
+              <strong>You both like:</strong>
+            </div>
+            <div class="match-preferences" style="background: rgba(255,255,255,0.15); padding: 8px; border-radius: 8px;">
+              ${match.sharedPreferences.map(pref => `<span class="preference-tag" style="background: rgba(0,0,0,0.2);">${pref}</span>`).join('')}
+            </div>
+          `;
+        }
+        
+        matchesHTML += `
+          <div class="match-card">
+            <div class="matching-score">${compatibilityPercentage}% Match</div>
+            <div class="match-avatar">${initials}</div>
+            <h3 class="match-name">${firstname} ${lastname}</h3>
+            
+            <div class="match-stats">
+              <div>
+                <span>Schedule Overlap:</span>
+                <span>${overlapHours} hours</span>
+              </div>
+              <div>
+                <span>Preference Match:</span>
+                <span>${preferenceMatch}%</span>
+              </div>
+            </div>
+            
+            ${sharedPreferencesHTML}
+            
+            <div class="match-preferences">
+              <strong>All Preferences:</strong><br/>
+              ${preferencesHTML}
+            </div>
+            
+            <button class="connect-btn" onclick="openConnectModal('${match.user._id}', '${firstname}')">
+              Connect
+            </button>
+          </div>
+        `;
+      });
+      
+      matchesHTML += '</div>';
+      matchesArea.innerHTML = matchesHTML;
+    }
+    
+    function openConnectModal(matchId, firstName) {
+      const modal = document.getElementById('connect-modal');
+      document.getElementById('modal-name').textContent = firstName;
+      document.getElementById('match-id').value = matchId;
+      modal.style.display = 'block';
+    }
+    
+    function closeModal() {
+      document.getElementById('connect-modal').style.display = 'none';
+      document.getElementById('connect-form').reset();
+    }
+    
+    async function sendConnectionRequest() {
+      try {
+        const matchId = document.getElementById('match-id').value;
+        const message = document.getElementById('message').value.trim();
+        
+        if (!message) {
+          alert('Please enter a message');
+          return;
+        }
+        
+        // Show sending state
+        const submitBtn = document.querySelector('#connect-form .modal-btn');
+        const originalBtnText = submitBtn.textContent;
+        submitBtn.textContent = 'Sending...';
+        submitBtn.disabled = true;
+        
+        try {
+          const response = await fetch(`http://localhost:5000/api/matches/contact/${matchId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ message })
+          });
+          
+          let data;
+          try {
+            data = await response.json();
+          } catch (e) {
+            console.error('Error parsing JSON response:', e);
+            data = { message: 'Could not process server response' };
+          }
+          
+          if (!response.ok) {
+            throw new Error(data.message || 'Failed to send connection request');
+          }
+          
+          alert('Connection request sent successfully!');
+          closeModal();
+          
+        } catch (error) {
+          console.error('Error sending connection request:', error);
+          alert(`Failed to send connection request: ${error.message}`);
+        } finally {
+          // Restore button state
+          submitBtn.textContent = originalBtnText;
+          submitBtn.disabled = false;
+        }
+        
+      } catch (error) {
+        console.error('Unexpected error:', error);
+        alert('An unexpected error occurred. Please try again.');
+      }
+    }
+    
+    // Close modal when clicking outside of it
+    window.onclick = function(event) {
+      const modal = document.getElementById('connect-modal');
+      if (event.target === modal) {
+        closeModal();
+      }
+    };
+  </script>
+</body>
+</html>

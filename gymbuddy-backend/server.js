@@ -5,6 +5,7 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
 const verifyToken = require('./middleware/authMiddleware'); // ✅ Middleware to protect routes
 const calendarRoutes = require("./routes/calendar");
+const matchesRoutes = require("./routes/matches"); // ✅ Added matches routes
 
 dotenv.config();
 connectDB();
@@ -32,6 +33,7 @@ app.use((err, req, res, next) => {
 });
 
 app.use("/api/calendar", calendarRoutes);
+app.use("/api/matches", matchesRoutes); // ✅ Add matches routes
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT} 🚀`));
