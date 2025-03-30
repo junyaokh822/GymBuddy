@@ -61,26 +61,57 @@ io.use(async (socket, next) => {
 
 // Socket.IO Connection Handling
 io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.userId}`);
+  console.log(`User connected: ${socket.userId} (Socket ID: ${socket.id})`);
   
   // Join a personal room based on user ID
   socket.join(socket.userId.toString());
+  console.log(`Socket ${socket.id} joined room: ${socket.userId.toString()}`);
+  
+  // Log all rooms this socket is in
+  const rooms = Array.from(socket.rooms);
+  console.log(`Socket ${socket.id} is in rooms:`, rooms);
   
   // Handle private message sending
   socket.on('send_message', async (data) => {
     try {
       const { recipientId, content } = data;
+      console.log(`Message from ${socket.userId} to ${recipientId}: ${content}`);
       
-      // Save message to database through the message route handler
-      // We'll implement this in the message routes
+      // Create message document
+      const Message = require('./models/Message');
+      const newMessage = new Message({
+        sender: socket.userId,
+        recipient: recipientId,
+        content,
+        read: false
+      });
+      
+      await newMessage.save();
+      console.log(`Message saved with ID: ${newMessage._id}`);
       
       // Emit to recipient's room if they're online
       io.to(recipientId).emit('receive_message', {
-        _id: data._id,
+        _id: newMessage._id,
         sender: socket.userId,
         senderName: `${socket.user.firstname} ${socket.user.lastname}`,
         content,
         createdAt: new Date()
+      });
+      
+      // Also notify about unread message
+      io.to(recipientId).emit('new_unread_message', {
+        count: 1,
+        sender: {
+          _id: socket.userId,
+          name: `${socket.user.firstname} ${socket.user.lastname}`
+        }
+      });
+      
+      // Emit success back to sender
+      socket.emit('message_sent', {
+        success: true,
+        messageId: newMessage._id,
+        recipientId
       });
       
     } catch (error) {
@@ -93,6 +124,7 @@ io.on('connection', (socket) => {
   socket.on('typing', async (data) => {
     try {
       const { to } = data;
+      console.log(`Typing indicator from ${socket.userId} to ${to}`);
       
       // Emit typing event to recipient
       io.to(to).emit('typing', { 
@@ -107,7 +139,7 @@ io.on('connection', (socket) => {
   
   // Handle user disconnection
   socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.userId}`);
+    console.log(`User disconnected: ${socket.userId} (Socket ID: ${socket.id})`);
   });
 });
 

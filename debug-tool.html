@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GymBuddy Socket Debug</title>
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    
+    .connection-status {
+      padding: 10px;
+      text-align: center;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+    
+    .connected {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .disconnected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .log-area {
+      height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      background: #f9f9f9;
+    }
+    
+    .log-entry {
+      margin-bottom: 5px;
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .log-time {
+      color: #666;
+      font-size: 0.8em;
+    }
+    
+    .log-event {
+      font-weight: bold;
+      color: #333;
+    }
+    
+    .log-data {
+      color: #555;
+      margin-top: 5px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    
+    input, button {
+      padding: 8px;
+      margin: 5px 0;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    button {
+      background: #4facfe;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>GymBuddy Socket.IO Debug Tool</h1>
+    
+    <div id="connectionStatus" class="connection-status disconnected">
+      Disconnected
+    </div>
+    
+    <div class="form-group">
+      <label for="tokenInput">JWT Token:</label>
+      <input type="text" id="tokenInput" placeholder="Paste your JWT token here" style="width: 100%;">
+      <button id="connectBtn">Connect</button>
+      <button id="disconnectBtn" disabled>Disconnect</button>
+    </div>
+    
+    <div class="form-group">
+      <h3>Send Message</h3>
+      <input type="text" id="recipientId" placeholder="Recipient User ID" style="width: 100%;">
+      <input type="text" id="messageContent" placeholder="Message content" style="width: 100%;">
+      <button id="sendMessageBtn" disabled>Send Message</button>
+    </div>
+    
+    <div class="form-group">
+      <h3>Send Typing Indicator</h3>
+      <input type="text" id="typingRecipientId" placeholder="Recipient User ID" style="width: 100%;">
+      <button id="sendTypingBtn" disabled>Send Typing</button>
+    </div>
+    
+    <h3>Event Log:</h3>
+    <div id="logArea" class="log-area"></div>
+  </div>
+  
+  <script>
+    let socket = null;
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const sendMessageBtn = document.getElementById('sendMessageBtn');
+    const sendTypingBtn = document.getElementById('sendTypingBtn');
+    const logArea = document.getElementById('logArea');
+    const connectionStatus = document.getElementById('connectionStatus');
+    
+    function addLogEntry(event, data) {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString();
+      
+      const logEntry = document.createElement('div');
+      logEntry.className = 'log-entry';
+      
+      const logTime = document.createElement('span');
+      logTime.className = 'log-time';
+      logTime.textContent = `[${timeStr}] `;
+      
+      const logEvent = document.createElement('span');
+      logEvent.className = 'log-event';
+      logEvent.textContent = event;
+      
+      logEntry.appendChild(logTime);
+      logEntry.appendChild(logEvent);
+      
+      if (data) {
+        const logData = document.createElement('div');
+        logData.className = 'log-data';
+        logData.textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+        logEntry.appendChild(logData);
+      }
+      
+      logArea.appendChild(logEntry);
+      logArea.scrollTop = logArea.scrollHeight;
+    }
+    
+    connectBtn.addEventListener('click', () => {
+      const token = document.getElementById('tokenInput').value.trim();
+      
+      if (!token) {
+        alert('Please enter a JWT token');
+        return;
+      }
+      
+      // Try to get the token from localStorage if not provided
+      if (token === 'localStorage') {
+        const storedToken = localStorage.getItem('token');
+        if (storedToken) {
+          document.getElementById('tokenInput').value = storedToken;
+        } else {
+          alert('No token found in localStorage');
+          return;
+        }
+      }
+      
+      try {
+        // Disconnect existing socket if any
+        if (socket) {
+          socket.disconnect();
+        }
+        
+        addLogEntry('Connecting to server...', `Token: ${token.substring(0, 10)}...`);
+        
+        // Connect to Socket.IO server
+        socket = io('http://localhost:5000', {
+          auth: {
+            token: token
+          }
+        });
+        
+        // Handle connection events
+        socket.on('connect', () => {
+          addLogEntry('Connected to server', `Socket ID: ${socket.id}`);
+          connectionStatus.className = 'connection-status connected';
+          connectionStatus.textContent = `Connected (Socket ID: ${socket.id})`;
+          
+          connectBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          sendMessageBtn.disabled = false;
+          sendTypingBtn.disabled = false;
+        });
+        
+        socket.on('disconnect', (reason) => {
+          addLogEntry('Disconnected from server', `Reason: ${reason}`);
+          connectionStatus.className = 'connection-status disconnected';
+          connectionStatus.textContent = 'Disconnected';
+          
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          sendMessageBtn.disabled = true;
+          sendTypingBtn.disabled = true;
+        });
+        
+        socket.on('connect_error', (error) => {
+          addLogEntry('Connection error', error.message);
+          connectionStatus.className = 'connection-status disconnected';
+          connectionStatus.textContent = `Connection error: ${error.message}`;
+          
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          sendMessageBtn.disabled = true;
+          sendTypingBtn.disabled = true;
+        });
+        
+        // Listen for all events
+        socket.onAny((event, ...args) => {
+          addLogEntry(`Event: ${event}`, args[0]);
+        });
+        
+        // Specific event listeners
+        socket.on('receive_message', (data) => {
+          addLogEntry('Received message', data);
+        });
+        
+        socket.on('message_sent', (data) => {
+          addLogEntry('Message sent confirmation', data);
+        });
+        
+        socket.on('message_error', (error) => {
+          addLogEntry('Message error', error);
+        });
+        
+        socket.on('typing', (data) => {
+          addLogEntry('Typing indicator', data);
+        });
+        
+        socket.on('new_unread_message', (data) => {
+          addLogEntry('New unread message notification', data);
+        });
+        
+      } catch (error) {
+        addLogEntry('Error initializing socket', error.message);
+        alert(`Error: ${error.message}`);
+      }
+    });
+    
+    disconnectBtn.addEventListener('click', () => {
+      if (socket) {
+        socket.disconnect();
+        addLogEntry('Manually disconnected');
+      }
+    });
+    
+    sendMessageBtn.addEventListener('click', () => {
+      if (!socket || !socket.connected) {
+        alert('Not connected to server');
+        return;
+      }
+      
+      const recipientId = document.getElementById('recipientId').value.trim();
+      const content = document.getElementById('messageContent').value.trim();
+      
+      if (!recipientId || !content) {
+        alert('Please enter recipient ID and message content');
+        return;
+      }
+      
+      const messageData = {
+        recipientId,
+        content
+      };
+      
+      addLogEntry('Sending message', messageData);
+      socket.emit('send_message', messageData);
+    });
+    
+    sendTypingBtn.addEventListener('click', () => {
+      if (!socket || !socket.connected) {
+        alert('Not connected to server');
+        return;
+      }
+      
+      const recipientId = document.getElementById('typingRecipientId').value.trim();
+      
+      if (!recipientId) {
+        alert('Please enter recipient ID');
+        return;
+      }
+      
+      const typingData = {
+        to: recipientId
+      };
+      
+      addLogEntry('Sending typing indicator', typingData);
+      socket.emit('typing', typingData);
+    });
+    
+    // Get token from localStorage on load
+    window.addEventListener('DOMContentLoaded', () => {
+      const storedToken = localStorage.getItem('token');
+      if (storedToken) {
+        document.getElementById('tokenInput').value = storedToken;
+      }
+    });
+  </script>
+</body>
+</html>

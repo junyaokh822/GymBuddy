@@ -193,12 +193,46 @@ router.post("/contact/:matchId", async (req, res) => {
       });
     }
     
-    // Send email notification
+    // Get recipient user
     const toUser = await User.findById(matchId);
     if (!toUser) {
       return res.status(404).json({
         success: false,
         message: "Recipient user not found"
+      });
+    }
+    
+    // Create a message in the database
+    const Message = require('../models/Message');
+    const newMessage = new Message({
+      sender: fromUserId,
+      recipient: matchId,
+      content: message,
+      read: false
+    });
+    
+    await newMessage.save();
+    
+    // Get the io instance
+    const io = req.app.get('io');
+    if (io) {
+      // Emit real-time message to recipient if online
+      io.to(matchId.toString()).emit('receive_message', {
+        _id: newMessage._id,
+        sender: fromUserId,
+        senderName: `${fromUser.firstname} ${fromUser.lastname}`,
+        content: message,
+        createdAt: newMessage.createdAt,
+        read: false
+      });
+      
+      // Emit notification for unread message
+      io.to(matchId.toString()).emit('new_unread_message', {
+        count: 1,
+        sender: {
+          _id: fromUserId,
+          name: `${fromUser.firstname} ${fromUser.lastname}`
+        }
       });
     }
     
@@ -212,7 +246,7 @@ router.post("/contact/:matchId", async (req, res) => {
         <h2>Hi ${toUser.firstname},</h2>
         <p>${fromUser.firstname} ${fromUser.lastname} wants to connect with you on GymBuddy!</p>
         <p><strong>Their message:</strong> "${message}"</p>
-        <p>You can reply directly to this email to connect with them, or log in to your GymBuddy account to see all your matches.</p>
+        <p>You can log in to your GymBuddy account to reply to this message!</p>
         <p>Email: ${fromUser.email}</p>
         <hr>
         <p>Happy workouts!</p>
