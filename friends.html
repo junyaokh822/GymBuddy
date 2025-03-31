@@ -291,10 +291,26 @@
     }
 
     @media (max-width: 768px) {
+
       .friends-grid,
       .requests-list {
         grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
       }
+    }
+
+    .previous-friend {
+      border-left: 3px solid #4facfe;
+    }
+
+    .previous-friend-tag {
+      margin-top: 5px;
+      font-size: 0.8rem;
+      color: #4facfe;
+      font-style: italic;
+    }
+
+    .btn.reconnect {
+      background: #4facfe;
     }
   </style>
 </head>
@@ -309,7 +325,8 @@
 
     <div class="tabs">
       <button class="tab active" onclick="switchTab('friends')">My Friends</button>
-      <button class="tab" onclick="switchTab('requests')">Friend Requests <span id="requestCount" class="notification-badge" style="display: none;">0</span></button>
+      <button class="tab" onclick="switchTab('requests')">Friend Requests <span id="requestCount"
+          class="notification-badge" style="display: none;">0</span></button>
       <button class="tab" onclick="switchTab('find')">Find Friends</button>
     </div>
 
@@ -336,7 +353,8 @@
 
     <!-- Find Friends Tab -->
     <div id="findTab" class="tab-content">
-      <input type="text" class="search-bar" id="findFriendsInput" placeholder="Search users by name or email..." onkeyup="if(this.value.length >= 2) searchUsers(this.value);">
+      <input type="text" class="search-bar" id="findFriendsInput" placeholder="Search users by name or email..."
+        onkeyup="if(this.value.length >= 2) searchUsers(this.value);">
       <div id="searchResultsContainer" class="search-results">
         <div class="empty-state">
           <p>Start typing to search for users</p>
@@ -351,33 +369,33 @@
   </div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       // Check authentication
       const token = localStorage.getItem('token');
       const user = JSON.parse(localStorage.getItem('user'));
-      
+
       if (!token || !user) {
         alert('Please log in to view your friends');
         window.location.href = 'index.html';
         return;
       }
-      
+
       // Initialize Socket.IO
       initSocket();
-      
+
       // Load initial data
       loadFriends();
       loadFriendRequests();
-      
+
       // Set up search functionality
-      document.getElementById('friendsSearchInput').addEventListener('input', function(e) {
+      document.getElementById('friendsSearchInput').addEventListener('input', function (e) {
         const searchTerm = e.target.value.toLowerCase();
         filterFriends(searchTerm);
       });
     });
-    
+
     let socket = null;
-    
+
     function initSocket() {
       // Connect to Socket.IO server
       socket = io('http://localhost:5000', {
@@ -385,23 +403,23 @@
           token: localStorage.getItem('token')
         }
       });
-      
+
       // Handle connection events
       socket.on('connect', () => {
         console.log('Connected to socket server');
         updateConnectionStatus(true);
       });
-      
+
       socket.on('disconnect', () => {
         console.log('Disconnected from socket server');
         updateConnectionStatus(false);
       });
-      
+
       socket.on('connect_error', (error) => {
         console.error('Socket connection error:', error);
         updateConnectionStatus(false, error.message);
       });
-      
+
       // Handle friend request notifications
       socket.on('friend_request', (data) => {
         console.log('New friend request received:', data);
@@ -410,7 +428,7 @@
         // Show notification
         updateRequestCount(1, true);
       });
-      
+
       // Handle friend request accepted notifications
       socket.on('friend_request_accepted', (data) => {
         console.log('Friend request accepted:', data);
@@ -419,7 +437,7 @@
         // Show notification
         alert(`${data.friend.name} accepted your friend request!`);
       });
-      
+
       // Handle friendship removed notification
       socket.on('friendship_removed', (data) => {
         console.log('Friendship removed:', data);
@@ -427,10 +445,10 @@
         loadFriends();
       });
     }
-    
+
     function updateConnectionStatus(connected, message = '') {
       const statusElement = document.getElementById('connectionStatus');
-      
+
       if (connected) {
         statusElement.textContent = '● Connected';
         statusElement.className = 'connection-status status-connected';
@@ -439,29 +457,29 @@
         statusElement.className = 'connection-status status-disconnected';
       }
     }
-    
+
     async function loadFriends() {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        
+
         const response = await fetch('http://localhost:5000/api/friends', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-        
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (!data.success) {
           throw new Error(data.message || 'Failed to load friends');
         }
-        
+
         renderFriends(data.data || []);
       } catch (error) {
         console.error('Error loading friends:', error);
@@ -473,10 +491,10 @@
         `;
       }
     }
-    
+
     function renderFriends(friends) {
       const container = document.getElementById('friendsContainer');
-      
+
       if (!friends.length) {
         container.innerHTML = `
           <div class="empty-state">
@@ -486,12 +504,12 @@
         `;
         return;
       }
-      
+
       let html = '';
-      
+
       friends.forEach(friend => {
         const initials = `${friend.firstname.charAt(0)}${friend.lastname.charAt(0)}`;
-        
+
         // Create preference tags
         let preferencesHtml = '';
         if (friend.preferences && friend.preferences.length) {
@@ -501,7 +519,7 @@
         } else {
           preferencesHtml = '<span class="preference-tag">No preferences set</span>';
         }
-        
+
         html += `
           <div class="friend-card" data-search="${friend.firstname.toLowerCase()} ${friend.lastname.toLowerCase()} ${friend.email.toLowerCase()}">
             <div class="user-info">
@@ -521,13 +539,13 @@
           </div>
         `;
       });
-      
+
       container.innerHTML = html;
     }
-    
+
     function filterFriends(searchTerm) {
       const cards = document.querySelectorAll('#friendsContainer .friend-card');
-      
+
       cards.forEach(card => {
         const searchData = card.getAttribute('data-search');
         if (searchData && searchData.includes(searchTerm)) {
@@ -537,31 +555,31 @@
         }
       });
     }
-    
+
     async function loadFriendRequests() {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        
+
         const response = await fetch('http://localhost:5000/api/friends/requests/received', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-        
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (!data.success) {
           throw new Error(data.message || 'Failed to load friend requests');
         }
-        
+
         renderFriendRequests(data.data || []);
-        
+
         // Update the request count badge
         updateRequestCount(data.count || 0);
       } catch (error) {
@@ -574,10 +592,10 @@
         `;
       }
     }
-    
+
     function renderFriendRequests(requests) {
       const container = document.getElementById('requestsContainer');
-      
+
       if (!requests.length) {
         container.innerHTML = `
           <div class="empty-state">
@@ -586,13 +604,13 @@
         `;
         return;
       }
-      
+
       let html = '';
-      
+
       requests.forEach(request => {
         const sender = request.sender;
         const initials = `${sender.firstname.charAt(0)}${sender.lastname.charAt(0)}`;
-        
+
         html += `
           <div class="friend-card">
             <div class="user-info">
@@ -609,33 +627,33 @@
           </div>
         `;
       });
-      
+
       container.innerHTML = html;
     }
-    
+
     function updateRequestCount(count, increment = false) {
       const badge = document.getElementById('requestCount');
-      
+
       if (increment) {
         count = parseInt(badge.textContent || '0') + count;
       }
-      
+
       badge.textContent = count;
-      
+
       if (count > 0) {
         badge.style.display = 'flex';
       } else {
         badge.style.display = 'none';
       }
     }
-    
+
     async function searchUsers(query) {
       try {
         if (query.length < 2) return;
-        
+
         const token = localStorage.getItem('token');
         if (!token) return;
-        
+
         // Show loading state
         document.getElementById('searchResultsContainer').innerHTML = `
           <div class="loading">
@@ -643,24 +661,24 @@
             <p>Searching users...</p>
           </div>
         `;
-        
+
         const response = await fetch(`http://localhost:5000/api/friends/search?query=${encodeURIComponent(query)}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-        
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (!data.success) {
           throw new Error(data.message || 'Failed to search users');
         }
-        
+
         renderSearchResults(data.data || []);
       } catch (error) {
         console.error('Error searching users:', error);
@@ -671,62 +689,78 @@
         `;
       }
     }
-    
+
+    // Example HTML rendering code for the search results
     function renderSearchResults(users) {
       const container = document.getElementById('searchResultsContainer');
-      
+
       if (!users.length) {
         container.innerHTML = `
-          <div class="empty-state">
-            <p>No users found matching your search</p>
-          </div>
-        `;
+      <div class="empty-state">
+        <p>No users found matching your search</p>
+      </div>
+    `;
         return;
       }
-      
+
       let html = '';
-      
+
       users.forEach(user => {
         const initials = `${user.firstname.charAt(0)}${user.lastname.charAt(0)}`;
-        
+
         // Determine the action button based on request status
         let actionButton = '';
-        
+
         if (user.requestStatus === 'sent') {
           actionButton = `<button class="btn" disabled>Request Sent</button>`;
         } else if (user.requestStatus === 'received') {
           actionButton = `<button class="btn accept" onclick="switchTab('requests')">Respond to Request</button>`;
         } else {
-          actionButton = `<button class="btn" onclick="sendFriendRequest('${user._id}', '${user.firstname}')">Add Friend</button>`;
+          // Show different button text for previous friends
+          if (user.isPreviousFriend) {
+            actionButton = `<button class="btn reconnect" onclick="sendFriendRequest('${user._id}', '${user.firstname}')">
+          <i class="fas fa-user-plus"></i> Reconnect
+        </button>`;
+          } else {
+            actionButton = `<button class="btn" onclick="sendFriendRequest('${user._id}', '${user.firstname}')">
+          Add Friend
+        </button>`;
+          }
         }
-        
+
+        // Add a special indicator for previous friends
+        const previousFriendIndicator = user.isPreviousFriend
+          ? `<div class="previous-friend-tag">Previously connected</div>`
+          : '';
+
         html += `
-          <div class="friend-card">
-            <div class="user-info">
-              <div class="avatar">${initials}</div>
-              <div>
-                <div class="user-name">${user.firstname} ${user.lastname}</div>
-                <div class="user-email">${user.email}</div>
-              </div>
-            </div>
-            <div class="actions">
-              ${actionButton}
-            </div>
+      <div class="friend-card ${user.isPreviousFriend ? 'previous-friend' : ''}">
+        <div class="user-info">
+          <div class="avatar">${initials}</div>
+          <div>
+            <div class="user-name">${user.firstname} ${user.lastname}</div>
+            <div class="user-email">${user.email}</div>
+            ${previousFriendIndicator}
           </div>
-        `;
+        </div>
+        <div class="actions">
+          ${actionButton}
+        </div>
+      </div>
+    `;
       });
-      
+
       container.innerHTML = html;
     }
-    
+
     async function sendFriendRequest(recipientId, firstName) {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        
+
         const confirmed = confirm(`Send a friend request to ${firstName}?`);
         if (!confirmed) return;
-        
+
         const response = await fetch('http://localhost:5000/api/friends/request', {
           method: 'POST',
           headers: {
@@ -735,20 +769,20 @@
           },
           body: JSON.stringify({ recipientId })
         });
-        
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (!data.success) {
           throw new Error(data.message || 'Failed to send friend request');
         }
-        
+
         alert(`Friend request sent to ${firstName}!`);
-        
+
         // Refresh the search results
         const searchInput = document.getElementById('findFriendsInput');
         if (searchInput.value.length >= 2) {
@@ -759,12 +793,12 @@
         alert(`Failed to send friend request: ${error.message}`);
       }
     }
-    
+
     async function respondToRequest(requestId, status) {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        
+
         const response = await fetch(`http://localhost:5000/api/friends/requests/${requestId}`, {
           method: 'PUT',
           headers: {
@@ -773,17 +807,17 @@
           },
           body: JSON.stringify({ status })
         });
-        
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         // Reload requests and friends
         loadFriendRequests();
-        
+
         if (status === 'accepted') {
           loadFriends();
           alert('Friend request accepted!');
@@ -795,27 +829,27 @@
         alert(`Failed to process request: ${error.message}`);
       }
     }
-    
+
     async function removeFriend(friendId, firstName) {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        
+
         const confirmed = confirm(`Remove ${firstName} from your friends? This action cannot be undone.`);
         if (!confirmed) return;
-        
+
         const response = await fetch(`http://localhost:5000/api/friends/${friendId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-        
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
-        
+
         // Reload friends
         loadFriends();
         alert(`${firstName} has been removed from your friends.`);
@@ -824,28 +858,28 @@
         alert(`Failed to remove friend: ${error.message}`);
       }
     }
-    
+
     function openChat(userId) {
       window.location.href = `conversation.html?userId=${userId}`;
     }
-    
+
     function switchTab(tabName) {
       // Reset active class on all tabs
       document.querySelectorAll('.tab').forEach(tab => {
         tab.classList.remove('active');
       });
-      
+
       // Hide all content
       document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
       });
-      
+
       // Set active tab
       document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
-      
+
       // Show selected content
       document.getElementById(`${tabName}Tab`).classList.add('active');
-      
+
       // Load data if needed
       if (tabName === 'requests') {
         loadFriendRequests();

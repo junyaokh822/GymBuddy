@@ -37,12 +37,13 @@ router.post('/request', async (req, res) => {
       });
     }
     
-    // Check if they are already friends
+    // Check if they are already friends (and the friendship is not deleted for sender)
     const existingFriendship = await Friend.findOne({
       $or: [
         { user1: senderId, user2: recipientId },
         { user1: recipientId, user2: senderId }
-      ]
+      ],
+      deletedFor: { $ne: senderId } // Not deleted for the sender
     });
     
     if (existingFriendship) {
@@ -52,21 +53,35 @@ router.post('/request', async (req, res) => {
       });
     }
     
-    // Check if there's a pending request from sender to recipient
+    // Check if there's any existing request between these users
     const existingRequest = await FriendRequest.findOne({
-      sender: senderId,
-      recipient: recipientId
+      $or: [
+        { sender: senderId, recipient: recipientId },
+        { sender: recipientId, recipient: senderId }
+      ]
     });
     
     if (existingRequest) {
-      if (existingRequest.status === 'pending') {
+      // If request exists and is pending from sender to recipient, reject
+      if (existingRequest.sender.toString() === senderId.toString() && 
+          existingRequest.status === 'pending') {
         return res.status(400).json({
           success: false,
           message: 'You already have a pending friend request to this user'
         });
-      } else if (existingRequest.status === 'rejected') {
-        // Update the rejected request to pending
+      }
+      
+      // If request was previously rejected or accepted and then friendship was deleted
+      if (existingRequest.status === 'rejected' || existingRequest.status === 'accepted') {
+        // Update the existing request to pending
         existingRequest.status = 'pending';
+        
+        // Swap sender and recipient if the original request was from recipient to sender
+        if (existingRequest.sender.toString() === recipientId.toString()) {
+          existingRequest.sender = senderId;
+          existingRequest.recipient = recipientId;
+        }
+        
         await existingRequest.save();
         
         // Get sender information
@@ -88,64 +103,85 @@ router.post('/request', async (req, res) => {
         
         return res.status(200).json({
           success: true,
-          message: 'Friend request sent again successfully',
+          message: 'Friend request sent successfully',
           data: existingRequest
         });
       }
-    }
-    
-    // Check if there's a pending request from recipient to sender
-    const reciprocalRequest = await FriendRequest.findOne({
-      sender: recipientId,
-      recipient: senderId,
-      status: 'pending'
-    });
-    
-    if (reciprocalRequest) {
-      // Auto-accept since both users want to be friends
-      reciprocalRequest.status = 'accepted';
-      await reciprocalRequest.save();
       
-      // Create a new friendship
-      const newFriendship = new Friend({
-        user1: senderId,
-        user2: recipientId
-      });
-      
-      await newFriendship.save();
-      
-      // Get sender information
-      const sender = await User.findById(senderId);
-      
-      // Get socket instance
-      const io = req.app.get('io');
-      
-      // Notify both users
-      if (io) {
-        // Notify the recipient
-        io.to(recipientId.toString()).emit('friend_request_accepted', {
-          friendship: newFriendship._id,
-          friend: {
-            _id: sender._id,
-            name: `${sender.firstname} ${sender.lastname}`
-          }
+      // Check if there's a pending request from recipient to sender
+      if (existingRequest.sender.toString() === recipientId.toString() && 
+          existingRequest.status === 'pending') {
+        // Auto-accept since both users want to be friends
+        existingRequest.status = 'accepted';
+        await existingRequest.save();
+        
+        // Check if friendship exists but was deleted
+        let existingDeletedFriendship = await Friend.findOne({
+          $or: [
+            { user1: senderId, user2: recipientId },
+            { user1: recipientId, user2: senderId }
+          ]
         });
         
-        // Notify the sender
-        io.to(senderId.toString()).emit('friend_request_accepted', {
-          friendship: newFriendship._id,
-          friend: {
-            _id: recipient._id,
-            name: `${recipient.firstname} ${recipient.lastname}`
-          }
+        let newFriendship;
+        
+        if (existingDeletedFriendship) {
+          // Remove both users from deletedFor
+          newFriendship = await Friend.findByIdAndUpdate(
+            existingDeletedFriendship._id,
+            { 
+              $pull: { 
+                deletedFor: { 
+                  $in: [senderId, recipientId] 
+                } 
+              }
+            },
+            { new: true }
+          );
+        } else {
+          // Create a new friendship
+          newFriendship = new Friend({
+            user1: senderId,
+            user2: recipientId,
+            deletedFor: []
+          });
+          
+          await newFriendship.save();
+        }
+        
+        // Get sender information
+        const sender = await User.findById(senderId);
+        
+        // Get socket instance
+        const io = req.app.get('io');
+        
+        // Notify both users
+        if (io) {
+          // Notify the recipient
+          io.to(recipientId.toString()).emit('friend_request_accepted', {
+            friendship: newFriendship._id,
+            friend: {
+              _id: sender._id,
+              name: `${sender.firstname} ${sender.lastname}`
+            }
+          });
+          
+          // Notify the sender
+          io.to(senderId.toString()).emit('friend_request_accepted', {
+            friendship: newFriendship._id,
+            friend: {
+              _id: recipient._id,
+              name: `${recipient.firstname} ${recipient.lastname}`
+            }
+          });
+        }
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Friend request automatically accepted as recipient had already sent you a request',
+          friendship: newFriendship
         });
       }
-      
-      return res.status(200).json({
-        success: true,
-        message: 'Friend request automatically accepted as recipient had already sent you a request',
-        friendship: newFriendship
-      });
     }
     
     // Create a new friend request
@@ -318,12 +354,37 @@ router.put('/requests/:requestId', async (req, res) => {
     // If accepted, create friendship entry
     let friendship = null;
     if (status === 'accepted') {
-      friendship = new Friend({
-        user1: friendRequest.sender,
-        user2: friendRequest.recipient
+      // Check if a friendship already exists but was marked as deleted
+      const existingFriendship = await Friend.findOne({
+        $or: [
+          { user1: friendRequest.sender, user2: friendRequest.recipient },
+          { user1: friendRequest.recipient, user2: friendRequest.sender }
+        ]
       });
       
-      await friendship.save();
+      if (existingFriendship) {
+        // If it exists, just remove both users from deletedFor array
+        friendship = await Friend.findByIdAndUpdate(
+          existingFriendship._id,
+          { 
+            $pull: { 
+              deletedFor: { 
+                $in: [friendRequest.sender, friendRequest.recipient] 
+              } 
+            }
+          },
+          { new: true }
+        );
+      } else {
+        // Otherwise create a new friendship
+        friendship = new Friend({
+          user1: friendRequest.sender,
+          user2: friendRequest.recipient,
+          deletedFor: [] // Initialize empty deletedFor array
+        });
+        
+        await friendship.save();
+      }
       
       // Get user information for both users
       const [currentUser, sender] = await Promise.all([
@@ -373,11 +434,13 @@ router.get('/', async (req, res) => {
     const userId = req.user.id || req.user._id;
     
     // Find all friendships involving the current user
+    // that are not deleted for this user
     const friendships = await Friend.find({
       $or: [
         { user1: userId },
         { user2: userId }
-      ]
+      ],
+      deletedFor: { $ne: userId } // Don't include friendships deleted by the user
     });
     
     // Extract friend IDs
@@ -416,20 +479,40 @@ router.delete('/:friendId', async (req, res) => {
     const { friendId } = req.params;
     const userId = req.user.id || req.user._id;
     
-    // Delete the friendship
-    const result = await Friend.findOneAndDelete({
-      $or: [
-        { user1: userId, user2: friendId },
-        { user1: friendId, user2: userId }
-      ]
-    });
+    // Mark the friendship as deleted for this user
+    // instead of deleting it completely
+    const result = await Friend.findOneAndUpdate(
+      {
+        $or: [
+          { user1: userId, user2: friendId },
+          { user1: friendId, user2: userId }
+        ],
+        deletedFor: { $ne: userId } // Only update if not already deleted for this user
+      },
+      {
+        $addToSet: { deletedFor: userId } // Add this user to deletedFor array
+      },
+      { new: true }
+    );
     
     if (!result) {
       return res.status(404).json({
         success: false,
-        message: 'Friendship not found'
+        message: 'Friendship not found or already removed'
       });
     }
+    
+    // Also update the friend request to rejected
+    await FriendRequest.findOneAndUpdate(
+      {
+        $or: [
+          { sender: userId, recipient: friendId },
+          { sender: friendId, recipient: userId }
+        ]
+      },
+      { status: 'rejected' },
+      { new: true }
+    );
     
     // Get socket instance
     const io = req.app.get('io');
@@ -457,7 +540,7 @@ router.delete('/:friendId', async (req, res) => {
 
 /**
  * GET /api/friends/search
- * Search for potential friends (users who are not already friends)
+ * Search for potential friends with enhanced information
  */
 router.get('/search', async (req, res) => {
   try {
@@ -471,24 +554,40 @@ router.get('/search', async (req, res) => {
       });
     }
     
-    // Find current friends
-    const friendships = await Friend.find({
+    // Find active friendships (where the current user has not deleted the friendship)
+    const activeFriendships = await Friend.find({
       $or: [
         { user1: userId },
         { user2: userId }
-      ]
+      ],
+      deletedFor: { $ne: userId } // Not deleted by current user
     });
     
-    // Extract friend IDs
-    const friendIds = friendships.map(friendship => {
+    // Find deleted friendships (where the current user has deleted the friendship)
+    const deletedFriendships = await Friend.find({
+      $or: [
+        { user1: userId },
+        { user2: userId }
+      ],
+      deletedFor: userId // Deleted by current user
+    });
+    
+    // Extract active friend IDs
+    const activeFriendIds = activeFriendships.map(friendship => {
       return friendship.user1.toString() === userId.toString() ? 
-        friendship.user2 : friendship.user1;
+        friendship.user2.toString() : friendship.user1.toString();
+    });
+    
+    // Extract deleted friend IDs
+    const deletedFriendIds = deletedFriendships.map(friendship => {
+      return friendship.user1.toString() === userId.toString() ? 
+        friendship.user2.toString() : friendship.user1.toString();
     });
     
     // Add the current user ID to the exclusion list
-    const excludeIds = [...friendIds, userId];
+    const excludeIds = [...activeFriendIds, userId];
     
-    // Find users matching the search who are not friends
+    // Find users matching the search who are not active friends
     const users = await User.find({
       _id: { $nin: excludeIds },
       $or: [
@@ -512,17 +611,22 @@ router.get('/search', async (req, res) => {
     const sentRequestIds = sentRequests.map(req => req.recipient.toString());
     const receivedRequestIds = receivedRequests.map(req => req.sender.toString());
     
-    // Add request status to user objects
+    // Add request status and previous friend status to user objects
     const usersWithStatus = users.map(user => {
       const userObj = user.toObject();
+      const userIdStr = user._id.toString();
       
-      if (sentRequestIds.includes(user._id.toString())) {
+      // Request status
+      if (sentRequestIds.includes(userIdStr)) {
         userObj.requestStatus = 'sent';
-      } else if (receivedRequestIds.includes(user._id.toString())) {
+      } else if (receivedRequestIds.includes(userIdStr)) {
         userObj.requestStatus = 'received';
       } else {
         userObj.requestStatus = null;
       }
+      
+      // Previous friend status
+      userObj.isPreviousFriend = deletedFriendIds.includes(userIdStr);
       
       return userObj;
     });

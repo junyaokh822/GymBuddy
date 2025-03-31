@@ -11,6 +11,11 @@ const FriendSchema = new mongoose.Schema({
     ref: 'User', 
     required: true 
   },
+  // Track which users have deleted this friendship
+  deletedFor: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   createdAt: { 
     type: Date, 
     default: Date.now 
