@@ -10,6 +10,7 @@ const verifyToken = require('./middleware/authMiddleware');
 const calendarRoutes = require("./routes/calendar");
 const matchesRoutes = require("./routes/matches");
 const messageRoutes = require("./routes/messages");
+const friendsRoutes = require("./routes/friends");
 const User = require('./models/User');
 
 dotenv.config();
@@ -157,6 +158,7 @@ app.get("/api/protected", verifyToken, (req, res) => {
 app.use("/api/calendar", calendarRoutes);
 app.use("/api/matches", matchesRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/friends", friendsRoutes);
 
 // ✅ Global Error Handling Middleware
 app.use((err, req, res, next) => {

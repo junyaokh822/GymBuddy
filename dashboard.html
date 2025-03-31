@@ -29,7 +29,7 @@
       margin-top: 10px;
     }
 
-    .logout-btn {
+    .dashboard-button {
       margin-top: 20px;
       padding: 10px 25px;
       font-size: 1rem;
@@ -42,9 +42,10 @@
       width: 180px;
       /* ✅ Set a fixed width */
       text-align: center;
+      position: relative;
     }
 
-    .logout-btn:hover {
+    .dashboard-button:hover {
       background-color: #eee;
     }
     
@@ -56,6 +57,10 @@
       padding: 2px 6px;
       font-size: 0.7rem;
       margin-left: 5px;
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
     }
     
     .connection-status {
@@ -80,11 +85,12 @@
   <div class="connection-status" id="connectionStatus"></div>
   <h1>Welcome to GymBuddy!</h1>
   <div class="user-info" id="userEmail">Loading user info...</div>
-  <button class="logout-btn" onclick="goToProfile()">My Profile</button>
-  <button class="logout-btn" onclick="goToCalendar()">My Calendar</button>
-  <button class="logout-btn" onclick="goToMatches()">Find Gym Buddies</button>
-  <button class="logout-btn" onclick="goToMessages()">Messages <span id="unreadBadge" class="notification-badge" style="display: none;"></span></button>
-  <button class="logout-btn" onclick="logout()">Log Out</button>
+  <button class="dashboard-button" onclick="goToProfile()">My Profile</button>
+  <button class="dashboard-button" onclick="goToCalendar()">My Calendar</button>
+  <button class="dashboard-button" onclick="goToMatches()">Find Gym Buddies</button>
+  <button class="dashboard-button" onclick="goToFriends()">Friends <span id="friendBadge" class="notification-badge" style="display: none;"></span></button>
+  <button class="dashboard-button" onclick="goToMessages()">Messages <span id="unreadBadge" class="notification-badge" style="display: none;"></span></button>
+  <button class="dashboard-button" onclick="logout()">Log Out</button>
 
 
   <script>
@@ -131,8 +137,17 @@
         incrementUnreadBadge();
       });
       
+      // Listen for friend request notifications
+      socket.on('friend_request', (data) => {
+        console.log('New friend request received:', data);
+        incrementFriendBadge();
+      });
+      
       // Also check unread messages via API for messages received when offline
       checkUnreadMessages();
+      
+      // Also check pending friend requests
+      checkPendingFriendRequests();
     }
     
     function updateConnectionStatus(connected, message = '') {
@@ -207,6 +222,10 @@
       window.location.href = "messages.html";
     }
     
+    function goToFriends() {
+      window.location.href = "friends.html";
+    }
+    
     // Check for unread messages
     async function checkUnreadMessages() {
       const token = localStorage.getItem("token");
@@ -236,6 +255,35 @@
       }
     }
     
+    // Check for pending friend requests
+    async function checkPendingFriendRequests() {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      
+      try {
+        const response = await fetch("http://localhost:5000/api/friends/requests/received", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const friendBadge = document.getElementById("friendBadge");
+          
+          if (data.success && data.count > 0) {
+            friendBadge.textContent = data.count > 99 ? "99+" : data.count;
+            friendBadge.style.display = "inline-block";
+          } else {
+            friendBadge.style.display = "none";
+          }
+        }
+      } catch (error) {
+        console.error("Error checking friend requests:", error);
+      }
+    }
+    
     function incrementUnreadBadge() {
       const unreadBadge = document.getElementById("unreadBadge");
       let currentCount = parseInt(unreadBadge.textContent, 10) || 0;
@@ -243,6 +291,15 @@
       
       unreadBadge.textContent = currentCount > 99 ? "99+" : currentCount;
       unreadBadge.style.display = "inline-block";
+    }
+    
+    function incrementFriendBadge() {
+      const friendBadge = document.getElementById("friendBadge");
+      let currentCount = parseInt(friendBadge.textContent, 10) || 0;
+      currentCount++;
+      
+      friendBadge.textContent = currentCount > 99 ? "99+" : currentCount;
+      friendBadge.style.display = "inline-block";
     }
     
     // Clean up socket connection when leaving the page
