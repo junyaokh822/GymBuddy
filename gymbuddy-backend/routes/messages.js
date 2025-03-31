@@ -47,7 +47,8 @@ router.post('/', async (req, res) => {
       sender: senderId,
       recipient: recipientId,
       content,
-      read: false
+      read: false,
+      deletedFor: [] // Initialize empty deletedFor array
     });
     
     await newMessage.save();
@@ -100,17 +101,20 @@ router.post('/', async (req, res) => {
 /**
  * GET /api/messages/conversations
  * Get all conversations for the current user
+ * IMPORTANT: This route must come before the /:userId route
  */
 router.get('/conversations', async (req, res) => {
   try {
     const userId = req.user.id || req.user._id;
     
     // Find all messages where the user is either sender or recipient
+    // AND message is not deleted by current user
     const messages = await Message.find({
       $or: [
         { sender: userId },
         { recipient: userId }
-      ]
+      ],
+      deletedFor: { $ne: userId } // Exclude messages deleted by this user
     }).sort({ createdAt: -1 });
     
     // Get unique users the current user has exchanged messages with
@@ -158,7 +162,8 @@ router.get('/conversations', async (req, res) => {
         const unreadCount = await Message.countDocuments({
           sender: otherUserId,
           recipient: userId,
-          read: false
+          read: false,
+          deletedFor: { $ne: userId } // Only count messages not deleted by user
         });
         
         // Add to conversations list
@@ -198,8 +203,155 @@ router.get('/conversations', async (req, res) => {
 });
 
 /**
+ * GET /api/messages/unread/count
+ * Get count of unread messages
+ * IMPORTANT: This route must come before the /:userId route
+ */
+router.get('/unread/count', async (req, res) => {
+  try {
+    const userId = req.user.id || req.user._id;
+    
+    const unreadCount = await Message.countDocuments({
+      recipient: userId,
+      read: false,
+      deletedFor: { $ne: userId } // Don't count messages deleted by user
+    });
+    
+    res.status(200).json({
+      success: true,
+      unreadCount
+    });
+    
+  } catch (error) {
+    console.error('Error getting unread count:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get unread message count',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/messages/conversations/:userId
+ * Delete entire conversation with a specific user
+ * IMPORTANT: This route must come before the /:userId route
+ */
+router.delete('/conversations/:userId', async (req, res) => {
+  try {
+    const currentUserId = req.user.id || req.user._id;
+    const otherUserId = req.params.userId;
+    
+    // Validate the other user exists
+    const otherUser = await User.findById(otherUserId);
+    if (!otherUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Mark all messages in this conversation as deleted for current user
+    const result = await Message.updateMany(
+      {
+        $or: [
+          { sender: currentUserId, recipient: otherUserId },
+          { sender: otherUserId, recipient: currentUserId }
+        ],
+        deletedFor: { $ne: currentUserId } // Don't update already deleted messages
+      },
+      {
+        $addToSet: { deletedFor: currentUserId } // Add current user to deletedFor array
+      }
+    );
+    
+    // Check if any messages were marked as deleted
+    if (result.modifiedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No messages found to delete'
+      });
+    }
+    
+    // Return success response
+    res.status(200).json({
+      success: true,
+      message: 'Conversation deleted successfully',
+      modifiedCount: result.modifiedCount
+    });
+    
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete conversation',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/messages/:messageId
+ * Delete a specific message
+ */
+router.delete('/:messageId', async (req, res) => {
+  try {
+    const userId = req.user.id || req.user._id;
+    const messageId = req.params.messageId;
+    
+    // Find the message
+    const message = await Message.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: 'Message not found'
+      });
+    }
+    
+    // Check if the user is the sender (only sender can delete their messages)
+    if (message.sender.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete messages you sent'
+      });
+    }
+    
+    // Store recipient for socket notification
+    const recipientId = message.recipient.toString();
+    
+    // Mark the message as deleted only for the current user
+    await Message.findByIdAndUpdate(messageId, 
+      { $addToSet: { deletedFor: userId } }
+    );
+    
+    // Notify recipient about message deletion via socket
+    const io = req.app.get('io');
+    if (io) {
+      io.to(recipientId).emit('message_deleted', {
+        messageId: messageId
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Message deleted successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error deleting message:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete message',
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/messages/:userId
  * Get conversation with a specific user
+ * IMPORTANT: This route should be the last one as it has a generic parameter pattern
  */
 router.get('/:userId', async (req, res) => {
   try {
@@ -215,12 +367,13 @@ router.get('/:userId', async (req, res) => {
       });
     }
     
-    // Get messages between the two users
+    // Get messages between the two users, excluding messages deleted by current user
     const messages = await Message.find({
       $or: [
         { sender: currentUserId, recipient: otherUserId },
         { sender: otherUserId, recipient: currentUserId }
-      ]
+      ],
+      deletedFor: { $ne: currentUserId } // Don't include messages deleted by current user
     }).sort({ createdAt: 1 });
     
     // Get both user details
@@ -231,7 +384,12 @@ router.get('/:userId', async (req, res) => {
     
     // Mark all unread messages as read
     const updateResult = await Message.updateMany(
-      { sender: otherUserId, recipient: currentUserId, read: false },
+      { 
+        sender: otherUserId, 
+        recipient: currentUserId, 
+        read: false,
+        deletedFor: { $ne: currentUserId } // Only mark non-deleted messages as read
+      },
       { read: true }
     );
     
@@ -275,90 +433,6 @@ router.get('/:userId', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve conversation',
-      error: error.message
-    });
-  }
-});
-
-/**
- * DELETE /api/messages/:messageId
- * Delete a specific message
- */
-router.delete('/:messageId', async (req, res) => {
-  try {
-    const userId = req.user.id || req.user._id;
-    const messageId = req.params.messageId;
-    
-    // Find the message
-    const message = await Message.findById(messageId);
-    
-    if (!message) {
-      return res.status(404).json({
-        success: false,
-        message: 'Message not found'
-      });
-    }
-    
-    // Check if the user is the sender (only sender can delete their messages)
-    if (message.sender.toString() !== userId.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only delete messages you sent'
-      });
-    }
-    
-    // Store recipient for socket notification
-    const recipientId = message.recipient.toString();
-    
-    // Delete the message
-    await Message.findByIdAndDelete(messageId);
-    
-    // Notify recipient about message deletion via socket
-    const io = req.app.get('io');
-    if (io) {
-      io.to(recipientId).emit('message_deleted', {
-        messageId: messageId
-      });
-    }
-    
-    res.status(200).json({
-      success: true,
-      message: 'Message deleted successfully'
-    });
-    
-  } catch (error) {
-    console.error('Error deleting message:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete message',
-      error: error.message
-    });
-  }
-});
-
-/**
- * GET /api/messages/unread/count
- * Get count of unread messages
- */
-router.get('/unread/count', async (req, res) => {
-  try {
-    const userId = req.user.id || req.user._id;
-    
-    const unreadCount = await Message.countDocuments({
-      recipient: userId,
-      read: false
-    });
-    
-    res.status(200).json({
-      success: true,
-      unreadCount
-    });
-    
-  } catch (error) {
-    console.error('Error getting unread count:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get unread message count',
       error: error.message
     });
   }

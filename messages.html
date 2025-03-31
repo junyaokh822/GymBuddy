@@ -54,21 +54,26 @@
     }
 
     .conversation-item {
-      padding: 15px 20px;
+      padding: 0;
+      /* Remove the padding from the li element */
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      cursor: pointer;
-      transition: background-color 0.3s ease;
       display: flex;
       align-items: center;
       position: relative;
+      transition: opacity 0.3s ease;
     }
 
-    .conversation-item:hover {
+    .conversation-click-area {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      padding: 15px 20px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .conversation-click-area:hover {
       background-color: rgba(255, 255, 255, 0.05);
-    }
-
-    .conversation-item:last-child {
-      border-bottom: none;
     }
 
     .profile-pic {
@@ -125,6 +130,36 @@
       justify-content: center;
       font-size: 0.8rem;
       margin-left: auto;
+    }
+
+    .delete-conversation-btn {
+      background: rgba(255, 0, 0, 0.2);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-right: 15px;
+      opacity: 0;
+      transition: opacity 0.3s ease, background-color 0.3s ease;
+    }
+
+    .conversation-item:hover .delete-conversation-btn {
+      opacity: 1;
+    }
+
+    .delete-conversation-btn:hover {
+      background: rgba(255, 0, 0, 0.5);
+    }
+
+    .delete-icon {
+      font-size: 20px;
+      font-style: normal;
+      font-weight: bold;
     }
 
     .nav-buttons {
@@ -249,32 +284,32 @@
   </div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       // Check authentication
       const token = localStorage.getItem('token');
       const user = JSON.parse(localStorage.getItem('user'));
-      
+
       if (!token || !user) {
         alert('Please log in to view messages');
         window.location.href = 'index.html';
         return;
       }
-      
+
       // Initialize Socket.IO
       initSocket();
-      
+
       // Load conversations
       loadConversations();
-      
+
       // Set up search functionality
-      document.getElementById('searchInput').addEventListener('input', function(e) {
+      document.getElementById('searchInput').addEventListener('input', function (e) {
         const searchTerm = e.target.value.toLowerCase();
         filterConversations(searchTerm);
       });
     });
-    
+
     let socket = null;
-    
+
     function initSocket() {
       // Connect to Socket.IO server
       socket = io('http://localhost:5000', {
@@ -282,30 +317,30 @@
           token: localStorage.getItem('token')
         }
       });
-      
+
       // Handle connection events
       socket.on('connect', () => {
         console.log('Connected to socket server');
         updateConnectionStatus(true);
       });
-      
+
       socket.on('disconnect', () => {
         console.log('Disconnected from socket server');
         updateConnectionStatus(false);
       });
-      
+
       socket.on('connect_error', (error) => {
         console.error('Socket connection error:', error);
         updateConnectionStatus(false, error.message);
       });
-      
+
       // Listen for new messages
       socket.on('receive_message', (data) => {
         console.log('New message received:', data);
         // Update the conversation list with the new message
         updateConversationWithNewMessage(data);
       });
-      
+
       // Listen for unread message notifications
       socket.on('new_unread_message', (data) => {
         console.log('New unread message notification:', data);
@@ -313,10 +348,10 @@
         updateUnreadCount(data.sender._id, data.count);
       });
     }
-    
+
     function updateConnectionStatus(connected, message = '') {
       const statusElement = document.getElementById('connectionStatus');
-      
+
       if (connected) {
         statusElement.textContent = '● Connected';
         statusElement.className = 'connection-status status-connected';
@@ -325,42 +360,70 @@
         statusElement.className = 'connection-status status-disconnected';
       }
     }
-    
+
     async function loadConversations() {
       try {
+        // Show loading state
+        document.getElementById('messagesArea').innerHTML = `
+          <div class="loading">
+            <div class="loading-spinner"></div>
+            <p>Loading conversations...</p>
+          </div>
+        `;
+
+        console.log('Fetching conversations...');
         const response = await fetch('http://localhost:5000/api/messages/conversations', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
-        
+
+        console.log('Response status:', response.status);
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
-        
-        const data = await response.json();
-        
+
+        // For debugging, get the raw response text first
+        const responseText = await response.text();
+        console.log('Raw response text:', responseText);
+
+        // Try to parse as JSON
+        let data;
+        try {
+          data = JSON.parse(responseText);
+          console.log('Parsed response data:', data);
+        } catch (jsonError) {
+          console.error('JSON parse error:', jsonError);
+          throw new Error(`Failed to parse server response as JSON: ${responseText.substring(0, 100)}...`);
+        }
+
         if (!data.success) {
           throw new Error(data.message || 'Failed to load conversations');
         }
-        
+
+        // Check for conversations array
+        if (!data.conversations) {
+          console.warn('No conversations array in response');
+        }
+
         renderConversations(data.conversations || []);
-        
+
       } catch (error) {
-        console.error('Error loading conversations:', error);
+        console.error('Detailed error loading conversations:', error);
         document.getElementById('messagesArea').innerHTML = `
           <div class="empty-state">
             <p>Error loading conversations: ${error.message}</p>
+            <p>Check browser console for more details.</p>
             <button class="nav-btn" onclick="loadConversations()">Try Again</button>
           </div>
         `;
       }
     }
-    
+
     function renderConversations(conversations) {
       const messagesArea = document.getElementById('messagesArea');
-      
+
       if (conversations.length === 0) {
         messagesArea.innerHTML = `
           <div class="empty-state">
@@ -371,61 +434,66 @@
         `;
         return;
       }
-      
+
       // Sort conversations by date (newest first)
       conversations.sort((a, b) => {
         return new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt);
       });
-      
+
       let html = '<ul class="conversation-list" id="conversationList">';
-      
+
       conversations.forEach(convo => {
         const userInitials = `${convo.user.firstname.charAt(0)}${convo.user.lastname.charAt(0)}`;
         const lastMessageTime = formatMessageTime(convo.lastMessage.createdAt);
         const hasUnread = convo.unreadCount > 0;
-        
+
         html += `
-          <li class="conversation-item" data-user-id="${convo.user._id}" data-search="${convo.user.firstname.toLowerCase()} ${convo.user.lastname.toLowerCase()}" onclick="openConversation('${convo.user._id}')">
-            <div class="profile-pic">${userInitials}</div>
-            <div class="conversation-details">
-              <div class="conversation-name">${convo.user.firstname} ${convo.user.lastname}</div>
-              <div class="last-message">
-                ${convo.lastMessage.sender === 'me' ? 'You: ' : ''}${convo.lastMessage.content}
+          <li class="conversation-item" data-user-id="${convo.user._id}" data-search="${convo.user.firstname.toLowerCase()} ${convo.user.lastname.toLowerCase()}">
+            <div class="conversation-click-area" onclick="openConversation('${convo.user._id}')">
+              <div class="profile-pic">${userInitials}</div>
+              <div class="conversation-details">
+                <div class="conversation-name">${convo.user.firstname} ${convo.user.lastname}</div>
+                <div class="last-message">
+                  ${convo.lastMessage.sender === 'me' ? 'You: ' : ''}${convo.lastMessage.content}
+                </div>
+              </div>
+              <div class="conversation-meta">
+                <div class="timestamp">${lastMessageTime}</div>
+                ${hasUnread ? `<div class="unread-badge" id="unread-${convo.user._id}">${convo.unreadCount}</div>` : ''}
               </div>
             </div>
-            <div class="conversation-meta">
-              <div class="timestamp">${lastMessageTime}</div>
-              ${hasUnread ? `<div class="unread-badge" id="unread-${convo.user._id}">${convo.unreadCount}</div>` : ''}
-            </div>
+            <button class="delete-conversation-btn" onclick="confirmDeleteConversation('${convo.user._id}', '${convo.user.firstname}')">
+              <i class="delete-icon">×</i>
+            </button>
           </li>
         `;
       });
-      
+
       html += '</ul>';
       messagesArea.innerHTML = html;
     }
-    
+
     function updateConversationWithNewMessage(messageData) {
       const conversationList = document.getElementById('conversationList');
       if (!conversationList) return; // No conversations loaded yet
-      
+
       const senderId = messageData.sender;
       const conversationItem = document.querySelector(`.conversation-item[data-user-id="${senderId}"]`);
-      
+
       if (conversationItem) {
         // Update existing conversation
         const lastMessageEl = conversationItem.querySelector('.last-message');
         const timestampEl = conversationItem.querySelector('.timestamp');
-        
+
         // Update last message
         lastMessageEl.textContent = messageData.content;
-        
+
         // Update timestamp
         timestampEl.textContent = formatMessageTime(messageData.createdAt);
-        
+
         // Move conversation to top
         conversationList.insertBefore(conversationItem, conversationList.firstChild);
-        
+
         // Increment unread badge
         updateUnreadCount(senderId, 1, true);
       } else {
@@ -433,10 +501,10 @@
         loadConversations();
       }
     }
-    
+
     function updateUnreadCount(userId, count, increment = false) {
       const unreadBadge = document.getElementById(`unread-${userId}`);
-      
+
       if (unreadBadge) {
         if (increment) {
           // Increment existing count
@@ -446,7 +514,7 @@
           // Set to specific count
           unreadBadge.textContent = count;
         }
-        
+
         // Make sure badge is visible
         unreadBadge.style.display = 'flex';
       } else if (count > 0) {
@@ -462,36 +530,36 @@
         }
       }
     }
-    
+
     function formatMessageTime(timestamp) {
       const date = new Date(timestamp);
       const now = new Date();
       const diff = now - date;
       const oneDay = 24 * 60 * 60 * 1000;
-      
+
       // If message is from today
       if (diff < oneDay && date.getDate() === now.getDate()) {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       }
-      
+
       // If message is from yesterday
       if (diff < oneDay * 2 && now.getDate() - date.getDate() === 1) {
         return 'Yesterday';
       }
-      
+
       // If message is from this week (less than 7 days ago)
       if (diff < oneDay * 7) {
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         return days[date.getDay()];
       }
-      
+
       // Otherwise show date
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
-    
+
     function filterConversations(searchTerm) {
       const items = document.querySelectorAll('#conversationList .conversation-item');
-      
+
       items.forEach(item => {
         const searchData = item.getAttribute('data-search');
         if (searchData.includes(searchTerm)) {
@@ -501,11 +569,73 @@
         }
       });
     }
-    
+
     function openConversation(userId) {
       window.location.href = `conversation.html?userId=${userId}`;
     }
-    
+
+    // Handle conversation deletion confirmation
+    function confirmDeleteConversation(userId, userName) {
+      // Prevent event from bubbling up to parent
+      event.stopPropagation();
+      
+      if (confirm(`Are you sure you want to delete your conversation with ${userName}? This cannot be undone.`)) {
+        deleteConversation(userId);
+      }
+    }
+
+    // Delete conversation function
+    async function deleteConversation(userId) {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('Your session has expired. Please log in again.');
+          window.location.href = 'index.html';
+          return;
+        }
+        
+        const response = await fetch(`http://localhost:5000/api/messages/conversations/${userId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to delete conversation');
+        }
+        
+        // Remove the conversation from the UI
+        const conversationItem = document.querySelector(`.conversation-item[data-user-id="${userId}"]`);
+        if (conversationItem) {
+          conversationItem.style.opacity = '0';
+          setTimeout(() => {
+            conversationItem.remove();
+            
+            // Check if there are any conversations left
+            const remainingConversations = document.querySelectorAll('.conversation-item');
+            if (remainingConversations.length === 0) {
+              document.getElementById('messagesArea').innerHTML = `
+                <div class="empty-state">
+                  <p>You don't have any conversations yet.</p>
+                  <p>Start by connecting with gym buddies!</p>
+                  <button class="nav-btn" onclick="window.location.href='matches.html'">Find Gym Buddies</button>
+                </div>
+              `;
+            }
+          }, 300);
+        }
+        
+        // Show success message
+        alert('Conversation deleted successfully');
+        
+      } catch (error) {
+        console.error('Error deleting conversation:', error);
+        alert(`Failed to delete conversation: ${error.message}`);
+      }
+    }
+
     // Clean up socket connection when leaving the page
     window.addEventListener('beforeunload', () => {
       if (socket) {

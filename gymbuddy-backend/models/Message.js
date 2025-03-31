@@ -21,6 +21,11 @@ const MessageSchema = new mongoose.Schema({
     type: Boolean, 
     default: false 
   },
+  // Track which users have deleted this message
+  deletedFor: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   createdAt: { 
     type: Date, 
     default: Date.now 
@@ -30,5 +35,7 @@ const MessageSchema = new mongoose.Schema({
 // Create index for efficient querying of conversations
 MessageSchema.index({ sender: 1, recipient: 1 });
 MessageSchema.index({ createdAt: -1 });
+// Add index for the new deletedFor field for faster filtering
+MessageSchema.index({ deletedFor: 1 });
 
 module.exports = mongoose.model('Message', MessageSchema);
