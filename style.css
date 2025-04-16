@@ -7,13 +7,13 @@
     box-sizing: border-box;
     font-family: 'Poppins', sans-serif;
 }
-body{
-    background: url("images/1.jpg");
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
+body {
+    background: url("images/simon-berger-twukN12EN7c-unsplash.jpg") !important;
+    background-size: cover !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
     overflow: hidden;
-}
+  }
 .wrapper{
     display: flex;
     justify-content: center;
